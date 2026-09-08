@@ -66,20 +66,11 @@ The app opens the dashboard directly. There is no login or signup screen. Update
 
 ## Deploy (GitHub + Vercel)
 
-The live app needs a **hosted MySQL** database. Local WAMP/MySQL is not reachable from Vercel.
+Frontend and API deploy together from this repo. Production uses Neon Postgres (local development still uses MySQL).
 
-1. Create a free MySQL database (PlanetScale, TiDB Cloud, Aiven, Railway, or similar).
-2. Push this repo to GitHub.
-3. Import the repo in [Vercel](https://vercel.com) (root directory = repository root).
-4. Add these environment variables in the Vercel project:
+Live app: [https://travelcrm-eta.vercel.app](https://travelcrm-eta.vercel.app)
 
-```
-DATABASE_URL=mysql://USER:PASSWORD@HOST:3306/DATABASE
-DB_SSL=true
-CLIENT_ORIGIN=https://YOUR-APP.vercel.app
-```
-
-5. Deploy. The API lives at `/api` on the same domain as the frontend, so clients, bookings, packages, and the rest of the CRM keep working.
+GitHub: [https://github.com/myousufchohan17-code/travelcrm](https://github.com/myousufchohan17-code/travelcrm)
 
 Schema tables are created automatically on first API request. No dummy clients or bookings are inserted.
 
