@@ -1,6 +1,7 @@
-const mysql = require("mysql2/promise");
-const fs = require("fs");
 const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
+const mysql = require("mysql2/promise");
+const schemaPg = require("../schemaPg");
 
 const config = {
   host: process.env.DB_HOST || "localhost",
@@ -13,10 +14,6 @@ const config = {
   dateStrings: true,
   multipleStatements: true,
 };
-
-if (process.env.DB_SSL === "true" || (process.env.VERCEL && process.env.DB_SSL !== "false")) {
-  config.ssl = { rejectUnauthorized: process.env.DB_SSL !== "loose" };
-}
 
 let pool;
 let pgSql;
@@ -32,13 +29,11 @@ function isPostgres() {
   return url.startsWith("postgres://") || url.startsWith("postgresql://");
 }
 
-function findSchema(fileName) {
-  const candidates = [
-    path.join(__dirname, "..", "..", fileName),
-    path.join(process.cwd(), "backend", fileName),
-    path.join(process.cwd(), fileName),
-  ];
-  return candidates.find((file) => fs.existsSync(file));
+function neonUrl() {
+  return connectionUrl()
+    .replace(/&channel_binding=require/gi, "")
+    .replace(/\?channel_binding=require&?/gi, "?")
+    .replace(/\?$/, "");
 }
 
 function mysqlToPg(sql) {
@@ -68,23 +63,21 @@ function splitSql(sql) {
     .filter(Boolean);
 }
 
-function poolOptions() {
-  const url = connectionUrl();
-  if (url) {
-    const options = {
-      uri: url,
-      waitForConnections: true,
-      connectionLimit: process.env.VERCEL ? 1 : 10,
-      dateStrings: true,
-      multipleStatements: true,
-    };
-    if (process.env.DB_SSL === "true" || (process.env.VERCEL && process.env.DB_SSL !== "false")) {
-      options.ssl = { rejectUnauthorized: process.env.DB_SSL !== "loose" };
-    }
-    if (process.env.DB_SSL === "loose") options.ssl = { rejectUnauthorized: false };
-    return options;
+function normalizeParams(params) {
+  return (params || []).map((value) => (value === "" ? null : value));
+}
+
+function asRows(result) {
+  if (Array.isArray(result)) return result;
+  if (result && Array.isArray(result.rows)) return result.rows;
+  return [];
+}
+
+async function runPg(text, params = []) {
+  if (typeof pgSql.query === "function") {
+    return asRows(await pgSql.query(text, params));
   }
-  return config;
+  return asRows(await pgSql(text, params));
 }
 
 async function initDatabase() {
@@ -93,19 +86,15 @@ async function initDatabase() {
     if (isPostgres()) {
       dialect = "postgres";
       const { neon } = require("@neondatabase/serverless");
-      pgSql = neon(connectionUrl());
-      const schemaPath = findSchema("schema.pg.sql");
-      if (!schemaPath) throw new Error("schema.pg.sql was not found");
-      const schema = fs.readFileSync(schemaPath, "utf8");
-      for (const statement of splitSql(schema)) {
-        await pgSql.query(statement);
+      pgSql = neon(neonUrl());
+      for (const statement of splitSql(schemaPg)) {
+        await runPg(statement);
       }
       return;
     }
 
     dialect = "mysql";
-    const url = connectionUrl();
-    if (!url && !process.env.VERCEL) {
+    if (!connectionUrl() && !process.env.VERCEL) {
       const bootstrap = await mysql.createConnection({
         host: config.host,
         port: config.port,
@@ -119,9 +108,17 @@ async function initDatabase() {
       await bootstrap.end();
     }
 
-    pool = mysql.createPool(poolOptions());
-
-    const schemaPath = findSchema("schema.sql");
+    pool = mysql.createPool({
+      ...config,
+      ...(connectionUrl() ? { uri: connectionUrl() } : {}),
+    });
+    const fs = require("fs");
+    const path = require("path");
+    const schemaPath = [
+      path.join(__dirname, "..", "..", "schema.sql"),
+      path.join(process.cwd(), "backend", "schema.sql"),
+      path.join(process.cwd(), "schema.sql"),
+    ].find((file) => fs.existsSync(file));
     if (!schemaPath) throw new Error("schema.sql was not found");
     const schema = fs
       .readFileSync(schemaPath, "utf8")
@@ -132,7 +129,6 @@ async function initDatabase() {
     await pool.query("ALTER TABLE agents ADD COLUMN image MEDIUMTEXT NULL").catch(() => {});
     await pool.query("ALTER TABLE destinations MODIFY image MEDIUMTEXT NULL").catch(() => {});
     await pool.query("ALTER TABLE travel_packages MODIFY image MEDIUMTEXT NULL").catch(() => {});
-    await pool.query("ALTER TABLE agents MODIFY image MEDIUMTEXT NULL").catch(() => {});
     await pool.query("ALTER TABLE users MODIFY avatar MEDIUMTEXT NULL").catch(() => {});
     await pool.query("ALTER TABLE settings MODIFY logo MEDIUMTEXT NULL").catch(() => {});
     await pool.query(`
@@ -153,34 +149,20 @@ function getPool() {
 }
 
 async function query(sql, params = []) {
+  const values = normalizeParams(params);
   if (dialect === "postgres") {
     let text = mysqlToPg(sql);
     const isInsert = /^\s*insert\s+/i.test(text) && !/returning\s+/i.test(text);
     if (isInsert) text += " RETURNING id";
     text = toPgPlaceholders(text);
-    const rows = await pgSql.query(text, params);
+    const rows = await runPg(text, values);
     if (isInsert) {
       return { insertId: rows[0]?.id, affectedRows: rows.length };
     }
     return rows;
   }
-  const [rows] = await getPool().execute(sql, params);
+  const [rows] = await getPool().execute(sql, values);
   return rows;
 }
 
-async function withTransaction(fn) {
-  const conn = await getPool().getConnection();
-  try {
-    await conn.beginTransaction();
-    const result = await fn(conn);
-    await conn.commit();
-    return result;
-  } catch (err) {
-    await conn.rollback();
-    throw err;
-  } finally {
-    conn.release();
-  }
-}
-
-module.exports = { initDatabase, getPool, query, withTransaction };
+module.exports = { initDatabase, getPool, query };
