@@ -29,34 +29,59 @@ svg {
 
 .hero-card {
   position: relative;
+  display: block;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  height: 190px;
   overflow: hidden;
   border-radius: 1rem;
   box-sizing: border-box;
+  isolation: isolate;
+  contain: paint;
+}
+
+.hero-card .cover-fill {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
+.hero-card-body {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-height: 168px;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding: 0.75rem;
+}
+
+@media (min-width: 380px) {
+  .hero-card-body {
+    min-height: 190px;
+    padding: 1rem;
+  }
 }
 
 @media (min-width: 640px) {
-  .hero-card {
-    height: 220px;
+  .hero-card-body {
+    min-height: 220px;
+    padding: 1.5rem;
   }
 }
 
 @media (min-width: 1024px) {
-  .hero-card {
-    height: 240px;
+  .hero-card-body {
+    min-height: 240px;
   }
-}
-
-.cover-fill {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  object-fit: cover;
 }
 
 .page-head {
