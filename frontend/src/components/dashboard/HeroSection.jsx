@@ -10,7 +10,7 @@ export default function HeroSection() {
   const firstName = !loading && user?.full_name ? user.full_name.split(" ")[0] : "";
 
   return (
-    <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+    <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="hero-card">
         <img src={welcomeImage} alt="" className="cover-fill" />
         <div className="absolute inset-0 bg-gradient-to-r from-navy-950/80 via-navy-900/45 to-navy-900/10" />
