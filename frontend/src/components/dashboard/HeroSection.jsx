@@ -10,35 +10,32 @@ export default function HeroSection() {
   const firstName = !loading && user?.full_name ? user.full_name.split(" ")[0] : "";
 
   return (
-    <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <div className="hero-card">
-        <img src={welcomeImage} alt="" className="cover-fill" />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy-950/80 via-navy-900/45 to-navy-900/10" />
+    <div className="hero-section">
+      <article
+        className="hero-card hero-card-welcome"
+        style={{ "--hero-image": `url(${welcomeImage})` }}
+      >
         <div className="hero-card-body">
-          <h2 className="max-w-full break-words text-lg font-extrabold leading-tight text-white sm:text-2xl">
+          <h2>
             {loading ? "Welcome Back!" : `Welcome Back${firstName ? `, ${firstName}` : ""}!`}
           </h2>
-          <p className="mt-2 max-w-full break-words text-xs leading-5 text-white/85 sm:max-w-md sm:text-sm">
-            Manage your clients, bookings and travel packages all in one place.
-          </p>
+          <p>Manage your clients, bookings and travel packages all in one place.</p>
         </div>
-      </div>
+      </article>
 
-      <div className="hero-card">
-        <img src={discoverImage} alt="" className="cover-fill object-[center_30%]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-navy-950/85 via-navy-900/35 to-transparent" />
+      <article
+        className="hero-card hero-card-discover"
+        style={{ "--hero-image": `url(${discoverImage})` }}
+      >
         <div className="hero-card-body">
-          <p className="max-w-full break-words text-[10px] font-bold uppercase tracking-[0.18em] text-white/70 sm:text-[11px]">Premium Journeys</p>
-          <h3 className="mt-1 max-w-full break-words text-base font-extrabold leading-tight text-white sm:text-xl">Discover new horizons</h3>
-          <p className="mt-1 max-w-full break-words text-xs text-white/80 sm:text-sm">Create a booking and start the next trip.</p>
-          <button
-            onClick={() => openModal("booking")}
-            className="mt-3 inline-flex w-fit max-w-full shrink-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-brand-700 shadow-sm hover:bg-brand-50 sm:mt-4 sm:px-4"
-          >
+          <p className="hero-kicker">Premium Journeys</p>
+          <h3>Discover new horizons</h3>
+          <p>Create a booking and start the next trip.</p>
+          <button type="button" onClick={() => openModal("booking")}>
             <Plus className="h-4 w-4 shrink-0" /> New Booking
           </button>
         </div>
-      </div>
+      </article>
     </div>
   );
 }

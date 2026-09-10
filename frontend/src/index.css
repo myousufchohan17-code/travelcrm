@@ -27,60 +27,223 @@ svg {
   max-width: 100%;
 }
 
-.hero-card {
-  position: relative;
-  display: block;
+.hero-section {
+  display: grid;
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.hero-card {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 9.5rem;
+  height: auto;
+  flex-direction: column;
+  justify-content: flex-end;
   overflow: hidden;
   border-radius: 1rem;
   box-sizing: border-box;
-  isolation: isolate;
-  contain: paint;
+  background-color: #0b1736;
+  background-image:
+    linear-gradient(to right, rgb(7 18 36 / 0.8), rgb(11 23 54 / 0.45), rgb(11 23 54 / 0.1)),
+    var(--hero-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-.hero-card .cover-fill {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: cover;
+.hero-card-discover {
+  background-image:
+    linear-gradient(to top, rgb(7 18 36 / 0.85), rgb(11 23 54 / 0.35), transparent),
+    var(--hero-image);
+  background-position: center 30%;
 }
 
 .hero-card-body {
   position: relative;
-  z-index: 10;
+  z-index: 1;
   display: flex;
   width: 100%;
   max-width: 100%;
-  min-height: 168px;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
   flex-direction: column;
   justify-content: flex-end;
   box-sizing: border-box;
   padding: 0.75rem;
 }
 
-@media (min-width: 380px) {
+.hero-card-body h2,
+.hero-card-body h3,
+.hero-card-body p {
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+.hero-card-body h2 {
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.hero-card-body h3 {
+  margin-top: 0.25rem;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.hero-card-welcome .hero-card-body p {
+  margin-top: 0.5rem;
+  max-width: 100%;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: rgb(255 255 255 / 0.85);
+}
+
+.hero-card-discover .hero-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.7);
+}
+
+.hero-card-discover .hero-card-body p:not(.hero-kicker) {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: rgb(255 255 255 / 0.8);
+}
+
+.hero-card-body button {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.5rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #1d4ed8;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hero-card-body button:hover {
+  background: #eff6ff;
+}
+
+@media (min-width: 375px) {
+  .hero-card {
+    min-height: 10.5rem;
+  }
+
   .hero-card-body {
-    min-height: 190px;
+    padding: 0.875rem;
+  }
+}
+
+@media (min-width: 390px) {
+  .hero-card {
+    min-height: 11rem;
+  }
+
+  .hero-card-body {
     padding: 1rem;
+  }
+
+  .hero-card-discover .hero-kicker {
+    letter-spacing: 0.18em;
+  }
+}
+
+@media (min-width: 430px) {
+  .hero-card {
+    min-height: 11.5rem;
+  }
+
+  .hero-card-body {
+    padding: 1.125rem;
   }
 }
 
 @media (min-width: 640px) {
+  .hero-section {
+    gap: 1rem;
+  }
+
+  .hero-card {
+    min-height: 13.75rem;
+  }
+
   .hero-card-body {
-    min-height: 220px;
+    padding: 1.5rem;
+  }
+
+  .hero-card-body h2 {
+    font-size: 1.5rem;
+  }
+
+  .hero-card-body h3 {
+    font-size: 1.25rem;
+  }
+
+  .hero-card-welcome .hero-card-body p,
+  .hero-card-discover .hero-card-body p:not(.hero-kicker) {
+    font-size: 0.875rem;
+  }
+
+  .hero-card-discover .hero-kicker {
+    font-size: 11px;
+  }
+
+  .hero-card-body button {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .hero-card {
+    min-height: 13.125rem;
+  }
+
+  .hero-card-body {
     padding: 1.5rem;
   }
 }
 
 @media (min-width: 1024px) {
-  .hero-card-body {
+  .hero-section {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .hero-card {
     min-height: 240px;
+  }
+
+  .hero-card-welcome .hero-card-body p {
+    max-width: 28rem;
   }
 }
 
