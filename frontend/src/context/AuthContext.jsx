@@ -4,13 +4,7 @@ import api from "../api/client";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState({
-    full_name: "Travel Manager",
-    role: "admin",
-    email: null,
-    avatar: null,
-    phone: null,
-  });
+  const [user, setUser] = useState(null);
   const [settings, setSettings] = useState({ company_name: "SkyTrail Travels" });
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +17,7 @@ export function AuthProvider({ children }) {
       setUser(me);
       setSettings(company);
     } catch {
-      setUser({ full_name: "Travel Manager", role: "admin", email: null, avatar: null, phone: null });
+      setUser(null);
     } finally {
       setLoading(false);
     }

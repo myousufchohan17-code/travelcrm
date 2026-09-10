@@ -31,7 +31,7 @@ export default function Agents() {
             <div key={a.id} className="card overflow-hidden">
               <div className="h-36 bg-slate-100">
                 {a.image ? (
-                  <img src={a.image} alt="" className="h-full w-full object-cover" />
+                  <img src={a.image} alt="" className="h-full w-full max-w-none object-cover" />
                 ) : (
                   <div className="grid h-full place-items-center bg-brand-50 text-2xl font-extrabold text-brand-700">{initials(a.full_name)}</div>
                 )}

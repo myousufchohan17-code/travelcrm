@@ -42,8 +42,8 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="grid min-w-0 gap-4 lg:gap-5 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="min-w-0 space-y-4 lg:space-y-5">
+    <div className="grid w-full min-w-0 gap-4 lg:gap-5 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="w-full min-w-0 space-y-4 lg:space-y-5">
         <HeroSection />
         <StatCards stats={stats.data} />
         <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-5">

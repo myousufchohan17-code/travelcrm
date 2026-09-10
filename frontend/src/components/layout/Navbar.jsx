@@ -18,7 +18,7 @@ const typePath = {
 };
 
 export default function Navbar() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { setSidebarOpen, toast } = useUi();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -77,7 +77,7 @@ export default function Navbar() {
   }
 
   return (
-    <header ref={wrapRef} className="sticky top-0 z-20 flex items-center gap-2 border-b border-slate-100 bg-white/90 px-3 py-3 backdrop-blur sm:gap-3 lg:px-6">
+    <header ref={wrapRef} className="sticky top-0 z-20 flex w-full min-w-0 items-center gap-2 overflow-x-hidden border-b border-slate-100 bg-white/90 px-3 py-3 backdrop-blur sm:gap-3 lg:px-6">
       <button className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 lg:hidden" onClick={() => setSidebarOpen(true)}>
         <Menu className="h-5 w-5" />
       </button>
@@ -201,12 +201,18 @@ export default function Navbar() {
             }}
             className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-slate-100"
           >
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-xs font-bold text-brand-700">
-              {user?.avatar ? <img src={user.avatar} alt="" className="h-full w-full object-cover" /> : initials(user?.full_name)}
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+              {loading ? (
+                <span className="h-full w-full animate-pulse bg-slate-200" />
+              ) : user?.avatar ? (
+                <img src={user.avatar} alt="" className="h-full w-full max-w-none object-cover" />
+              ) : (
+                initials(user?.full_name)
+              )}
             </div>
             <div className="hidden min-w-0 max-w-[110px] text-left md:block lg:max-w-[160px]">
-              <p className="truncate text-sm font-semibold leading-4">{user?.full_name}</p>
-              <p className="truncate text-[11px] capitalize text-slate-400">{user?.role}</p>
+              <p className="truncate text-sm font-semibold leading-4">{loading ? " " : user?.full_name || "Profile"}</p>
+              <p className="truncate text-[11px] capitalize text-slate-400">{loading ? " " : user?.role || ""}</p>
             </div>
             <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
           </button>

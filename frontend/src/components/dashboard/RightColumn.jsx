@@ -19,7 +19,7 @@ export function UpcomingBookings({ items, loading }) {
           {items.map((b) => (
             <div key={b.id} className="flex min-w-0 items-center gap-3 rounded-2xl bg-slate-50 p-2.5">
               <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-200">
-                {b.image ? <img src={b.image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-brand-100" />}
+                {b.image ? <img src={b.image} alt="" className="h-full w-full max-w-none object-cover" /> : <div className="h-full w-full bg-brand-100" />}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-slate-800">{b.title || b.destination_name || "Booking"}</p>
@@ -52,7 +52,7 @@ export function AssignedAgents({ items, loading }) {
           {items.slice(0, 5).map((a) => (
             <div key={a.id} className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-50 text-xs font-bold text-brand-700">
-                {a.image ? <img src={a.image} alt="" className="h-full w-full object-cover" /> : initials(a.full_name)}
+                {a.image ? <img src={a.image} alt="" className="h-full w-full max-w-none object-cover" /> : initials(a.full_name)}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-800">{a.full_name}</p>
@@ -85,7 +85,7 @@ export function DestinationsCard({ items, loading }) {
           {items.slice(0, 5).map((d) => (
             <div key={d.id} className="flex items-center gap-3">
               <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-200">
-                {d.image ? <img src={d.image} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-[10px] text-slate-400">N/A</div>}
+                {d.image ? <img src={d.image} alt="" className="h-full w-full max-w-none object-cover" /> : <div className="grid h-full place-items-center text-[10px] text-slate-400">N/A</div>}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-800">{d.name}</p>
@@ -114,7 +114,7 @@ export function TopDestinations({ items, loading }) {
           {items.map((d) => (
             <div key={d.id} className="flex items-center gap-3">
               <div className="h-10 w-10 overflow-hidden rounded-full bg-slate-200">
-                {d.image ? <img src={d.image} alt="" className="h-full w-full object-cover" /> : null}
+                {d.image ? <img src={d.image} alt="" className="h-full w-full max-w-none object-cover" /> : null}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-800">{d.name}</p>

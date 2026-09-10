@@ -15,12 +15,12 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen min-w-0 overflow-x-hidden bg-canvas">
+    <div className="min-h-screen w-full max-w-[100vw] min-w-0 overflow-x-hidden bg-canvas">
       <Sidebar />
-      <div className="min-w-0 lg:pl-[270px]">
+      <div className="w-full min-w-0 lg:pl-[270px]">
         <Navbar />
-        <main className="min-w-0 p-3 sm:p-4 lg:p-6">
-          <div key={location.pathname} className="page-fade min-w-0">
+        <main className="w-full min-w-0 overflow-x-hidden p-3 sm:p-4 lg:p-6">
+          <div key={location.pathname} className="page-fade w-full min-w-0 max-w-full">
             <Outlet />
           </div>
         </main>

@@ -42,7 +42,7 @@ export default function Packages() {
             {list.data.data.map((p) => (
               <div key={p.id} className="card overflow-hidden">
                 <div className="h-32 bg-slate-100">
-                  {p.image ? <img src={p.image} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-xs text-slate-400">No image</div>}
+                  {p.image ? <img src={p.image} alt="" className="h-full w-full max-w-none object-cover" /> : <div className="grid h-full place-items-center text-xs text-slate-400">No image</div>}
                 </div>
                 <div className="p-4">
                   <div className="mb-2 flex items-center justify-between gap-2">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import api, { errorMessage } from "../api/client";
@@ -13,6 +13,15 @@ export default function Settings() {
   const [company, setCompany] = useState(settings?.company_name || "");
   const [agentModal, setAgentModal] = useState(null);
   const [destModal, setDestModal] = useState(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setProfile({ full_name: user.full_name || "", phone: user.phone || "", email: user.email || "" });
+  }, [user]);
+
+  useEffect(() => {
+    if (settings?.company_name) setCompany(settings.company_name);
+  }, [settings]);
 
   const agents = useQuery({ queryKey: ["agents"], queryFn: async () => (await api.get("/agents")).data });
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: async () => (await api.get("/destinations")).data });

@@ -31,7 +31,7 @@ export default function Destinations() {
             <div key={d.id} className="card overflow-hidden">
               <div className="h-40 bg-slate-100">
                 {d.image ? (
-                  <img src={d.image} alt="" className="h-full w-full object-cover" />
+                  <img src={d.image} alt="" className="h-full w-full max-w-none object-cover" />
                 ) : (
                   <div className="grid h-full place-items-center text-xs text-slate-400">No image</div>
                 )}

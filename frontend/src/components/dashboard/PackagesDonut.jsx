@@ -14,10 +14,10 @@ export default function PackagesDonut({ data, loading }) {
         <EmptyState title="No travel packages yet" hint="Add a package to populate this chart." />
       ) : (
         <div className="flex flex-col items-center gap-4 sm:flex-row">
-          <div className="relative h-[180px] w-[180px] shrink-0">
+          <div className="relative h-[140px] w-[140px] max-w-full shrink-0 sm:h-[180px] sm:w-[180px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={items} dataKey="count" nameKey="category" innerRadius={54} outerRadius={78} paddingAngle={3} animationDuration={700}>
+                <Pie data={items} dataKey="count" nameKey="category" innerRadius={42} outerRadius={62} paddingAngle={3} animationDuration={700}>
                   {items.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
                 <Tooltip />

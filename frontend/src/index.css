@@ -27,6 +27,36 @@ svg {
   max-width: 100%;
 }
 
+.hero-card {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: 190px;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
+@media (min-width: 640px) {
+  .hero-card {
+    height: 220px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-card {
+    height: 240px;
+  }
+}
+
+.cover-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
 .page-head {
   @apply flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5;
 }
