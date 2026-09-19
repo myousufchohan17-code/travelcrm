@@ -343,3 +343,50 @@ svg {
     max-width: 160px;
   }
 }
+
+.ai-page {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: calc(100dvh - 8.5rem);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e8eef7;
+  border-radius: 1.15rem;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 35, 82, 0.06);
+}
+
+.ai-page-header {
+  background:
+    linear-gradient(135deg, #0b1736 0%, #122047 58%, #1a2d5c 100%);
+}
+
+.ai-chip {
+  @apply inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-brand-100 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-50;
+}
+
+.ai-composer {
+  box-shadow: 0 -8px 24px rgba(15, 35, 82, 0.04);
+}
+
+.ai-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-scroll::-webkit-scrollbar-thumb {
+  background: #c9d4e5;
+  border-radius: 99px;
+}
+
+@media (min-width: 640px) {
+  .ai-page {
+    min-height: calc(100dvh - 9rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-page {
+    min-height: calc(100dvh - 9.5rem);
+  }
+}

@@ -11,6 +11,7 @@ import Destinations from "./pages/Destinations";
 import Messages from "./pages/Messages";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import AiAssistant from "./pages/AiAssistant";
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/messages" element={<Messages />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/ai-assistant" element={<AiAssistant />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

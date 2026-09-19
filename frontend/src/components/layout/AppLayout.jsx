@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { Sparkles } from "lucide-react";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import GlobalModals from "./GlobalModals";
@@ -9,6 +10,7 @@ import { Toasts } from "../ui/Common";
 export default function AppLayout() {
   const { toasts } = useUi();
   const location = useLocation();
+  const onAiPage = location.pathname.startsWith("/ai-assistant");
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -25,6 +27,15 @@ export default function AppLayout() {
           </div>
         </main>
       </div>
+      {!onAiPage ? (
+        <Link
+          to="/ai-assistant"
+          className="fixed bottom-4 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-blue-500/30 hover:bg-brand-700 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
+          aria-label="Open AI Travel Assistant"
+        >
+          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" />
+        </Link>
+      ) : null}
       <GlobalModals />
       <Toasts items={toasts} />
     </div>

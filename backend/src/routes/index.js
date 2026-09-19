@@ -14,6 +14,7 @@ const destinations = require("../controllers/destinationsController");
 const agents = require("../controllers/agentsController");
 const reports = require("../controllers/reportsController");
 const misc = require("../controllers/miscController");
+const ai = require("../controllers/aiController");
 
 const router = express.Router();
 
@@ -29,6 +30,7 @@ router.get("/dashboard/recent-clients", dashboard.recentClients);
 router.get("/dashboard/upcoming-bookings", dashboard.upcomingBookings);
 router.get("/dashboard/top-destinations", dashboard.topDestinations);
 router.get("/search", dashboard.search);
+router.post("/ai/travel-assistant", ai.chat);
 
 router.get("/clients", clients.list);
 router.get("/clients/:id", clients.getOne);
