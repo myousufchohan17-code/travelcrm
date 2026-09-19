@@ -1,4 +1,5 @@
 const { query } = require("../config/db");
+const { uploadedImage } = require("../utils/helpers");
 
 async function list(req, res, next) {
   try {
@@ -72,7 +73,12 @@ async function updateSettings(req, res, next) {
     if (!company_name || !String(company_name).trim()) {
       return res.status(400).json({ message: "Company name is required" });
     }
-    await query("UPDATE settings SET company_name = ? WHERE id = 1", [company_name.trim()]);
+    const logo = uploadedImage(req, "logos");
+    if (logo) {
+      await query("UPDATE settings SET company_name = ?, logo = ? WHERE id = 1", [company_name.trim(), logo]);
+    } else {
+      await query("UPDATE settings SET company_name = ? WHERE id = 1", [company_name.trim()]);
+    }
     const rows = await query("SELECT * FROM settings WHERE id = 1");
     res.json(rows[0]);
   } catch (err) {

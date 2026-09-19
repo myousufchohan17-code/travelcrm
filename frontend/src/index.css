@@ -337,6 +337,12 @@ svg {
   mix-blend-mode: screen;
 }
 
+.sidebar-logo-custom {
+  mix-blend-mode: normal;
+  max-height: 56px;
+  background: transparent;
+}
+
 @media (min-width: 1024px) {
   .sidebar-logo {
     height: 64px;

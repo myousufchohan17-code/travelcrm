@@ -11,6 +11,7 @@ export default function Settings() {
   const { toast, askConfirm, invalidateAll } = useUi();
   const [profile, setProfile] = useState({ full_name: user?.full_name || "", phone: user?.phone || "", email: user?.email || "" });
   const [company, setCompany] = useState(settings?.company_name || "");
+  const [logoPreview, setLogoPreview] = useState(settings?.logo || "");
   const [agentModal, setAgentModal] = useState(null);
   const [destModal, setDestModal] = useState(null);
 
@@ -21,6 +22,7 @@ export default function Settings() {
 
   useEffect(() => {
     if (settings?.company_name) setCompany(settings.company_name);
+    if (settings?.logo !== undefined) setLogoPreview(settings.logo || "");
   }, [settings]);
 
   const agents = useQuery({ queryKey: ["agents"], queryFn: async () => (await api.get("/agents")).data });
@@ -46,9 +48,15 @@ export default function Settings() {
 
   async function saveCompany(e) {
     e.preventDefault();
+    const fd = new FormData();
+    fd.append("company_name", company);
+    const file = e.target.logo?.files?.[0];
+    if (file) fd.append("logo", file);
     try {
-      const { data } = await api.put("/settings", { company_name: company });
+      const { data } = await api.put("/settings", fd);
       setSettings(data);
+      setLogoPreview(data.logo || "");
+      e.target.logo.value = "";
       toast("Company settings saved");
     } catch (err) {
       toast(errorMessage(err), "error");
@@ -85,6 +93,16 @@ export default function Settings() {
           <h2 className="mb-4 font-extrabold">Company</h2>
           <label className="label">Company name</label>
           <input className="input" value={company} onChange={(e) => setCompany(e.target.value)} />
+          <label className="label mt-4">Company logo</label>
+          <div className="mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-navy-900">
+            {logoPreview ? (
+              <img src={logoPreview} alt="" className="h-full w-full object-contain" />
+            ) : (
+              <span className="px-1 text-center text-[10px] font-semibold text-white/60">No logo</span>
+            )}
+          </div>
+          <input className="input" type="file" name="logo" accept="image/*" />
+          <p className="mt-1.5 text-xs text-slate-400">JPG, PNG, WEBP or GIF. Leave empty to keep the current logo.</p>
           <button className="btn-primary mt-4">Save company</button>
         </form>
 

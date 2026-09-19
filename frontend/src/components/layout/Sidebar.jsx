@@ -6,8 +6,9 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
 import { useUi } from "../../context/UiContext";
-import logo from "../../images/logo.webp";
+import fallbackLogo from "../../images/logo.webp";
 import sidebarArt from "../../images/sidebar.webp";
 
 const items = [
@@ -27,7 +28,10 @@ const items = [
 
 export default function Sidebar() {
   const { sidebarOpen, setSidebarOpen } = useUi();
+  const { settings } = useAuth();
   const location = useLocation();
+  const companyLogo = settings?.logo || fallbackLogo;
+  const companyName = settings?.company_name || "Travel Agency CRM";
   const unread = useQuery({
     queryKey: ["messages-unread"],
     queryFn: async () => (await api.get("/messages/unread-count")).data.count,
@@ -60,8 +64,12 @@ export default function Sidebar() {
             >
               <X className="h-5 w-5" />
             </button>
-            <img src={logo} alt="MIA Holidays" className="sidebar-logo mx-auto" />
-            <p className="mt-1 text-[11px] font-medium tracking-wide text-white/70">Travel Agency CRM</p>
+            <img
+              src={companyLogo}
+              alt={companyName}
+              className={`sidebar-logo mx-auto ${settings?.logo ? "sidebar-logo-custom" : ""}`}
+            />
+            <p className="mt-1 text-[11px] font-medium tracking-wide text-white/70">{companyName}</p>
           </div>
 
           <nav className="relative z-10 mt-3 flex-1 space-y-0.5 overflow-y-auto px-3 pb-24 sm:mt-4 sm:space-y-1 sm:pb-28">

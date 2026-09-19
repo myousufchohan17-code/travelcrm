@@ -34,5 +34,6 @@ const uploadPackage = multer({ storage: storageFor("packages"), fileFilter, limi
 const uploadDestination = multer({ storage: storageFor("destinations"), fileFilter, limits });
 const uploadAvatar = multer({ storage: storageFor("avatars"), fileFilter, limits });
 const uploadAgent = multer({ storage: storageFor("agents"), fileFilter, limits });
+const uploadLogo = multer({ storage: storageFor("logos"), fileFilter, limits });
 
-module.exports = { uploadPackage, uploadDestination, uploadAvatar, uploadAgent };
+module.exports = { uploadPackage, uploadDestination, uploadAvatar, uploadAgent, uploadLogo };

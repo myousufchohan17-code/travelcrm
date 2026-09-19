@@ -1,6 +1,6 @@
 const express = require("express");
 const { attachWorkspace } = require("../middleware/auth");
-const { uploadPackage, uploadDestination, uploadAvatar, uploadAgent } = require("../middleware/upload");
+const { uploadPackage, uploadDestination, uploadAvatar, uploadAgent, uploadLogo } = require("../middleware/upload");
 
 const auth = require("../controllers/authController");
 const dashboard = require("../controllers/dashboardController");
@@ -94,6 +94,6 @@ router.patch("/notifications/:id/read", misc.markRead);
 
 router.get("/activities", misc.activities);
 router.get("/settings", misc.getSettings);
-router.put("/settings", misc.updateSettings);
+router.put("/settings", uploadLogo.single("logo"), misc.updateSettings);
 
 module.exports = router;
