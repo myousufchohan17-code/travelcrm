@@ -19,6 +19,10 @@ export function StatusBadge({ value }) {
     lost: "bg-red-50 text-red-600",
     scheduled: "bg-blue-50 text-blue-600",
     rescheduled: "bg-amber-50 text-amber-600",
+    available: "bg-emerald-50 text-emerald-600",
+    reserved: "bg-blue-50 text-blue-600",
+    "low availability": "bg-amber-50 text-amber-600",
+    "out of stock": "bg-red-50 text-red-600",
   };
   return (
     <span className={`inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${map[key] || "bg-slate-100 text-slate-600"}`}>

@@ -163,7 +163,7 @@ async function fallbackAnswer(message) {
     return parts.join("\n");
   }
 
-  if (looksLike(q, ["revenue", "earn", "sales", "average booking", "how much", "income", "profit"])) {
+  if (!looksLike(q, ["inventory", "stock", "availability", "hotel", "room", "vehicle", "seat"]) && looksLike(q, ["revenue", "earn", "sales", "average booking", "how much", "income", "profit"])) {
     const data = await runTool("getRevenueSummary");
     if (data?.error) return CRM_UNAVAILABLE_TEXT;
     return [
@@ -179,6 +179,19 @@ async function fallbackAnswer(message) {
     ]
       .filter(Boolean)
       .join("\n");
+  }
+
+  if (looksLike(q, ["inventory", "stock", "availability", "available hotel", "available room", "vehicles", "vehicle", "seats", "restock", "out of stock", "low stock", "running low", "reserved inventory"])) {
+    const category = looksLike(q, ["hotel"]) ? "Hotels" : looksLike(q, ["room"]) ? "Rooms" : looksLike(q, ["vehicle"]) ? "Vehicles" : looksLike(q, ["seat", "flight"]) ? "Flights / Seats" : "";
+    const mode = looksLike(q, ["low", "running low", "restock", "almost finished"]) ? "low" : looksLike(q, ["out of stock", "out of", "zero"]) ? "out" : looksLike(q, ["reserved"]) ? "reserved" : looksLike(q, ["available", "availability"]) ? "available" : "all";
+    const destination = (text.match(/\b(?:in|for)\s+([A-Za-z][A-Za-z .'-]{1,50})[?.!]?$/i) || [])[1] || "";
+    const data = await runTool("getInventory", { category, mode, destination });
+    if (data?.error) return CRM_UNAVAILABLE_TEXT;
+    if (!data.results?.length && (category || mode !== "all" || destination)) return none();
+    const heading = mode === "low" ? "**Low Inventory**" : mode === "out" ? "**Out of Stock Inventory**" : "**Inventory Summary**";
+    const summary = [`* Total Items: ${data.total_items}`, `* Available: ${data.available}`, `* Reserved: ${data.reserved}`, `* Low Availability: ${data.low_items}`, `* Out of Stock: ${data.out_items}`].join("\n");
+    const list = data.results?.length ? `\n\n${table(["Item", "Category", "Destination", "Available", "Reserved", "Status"], data.results.map((row) => [row.name, row.category, row.destination, row.available_quantity, row.reserved_quantity, row.status.replaceAll("_", " ")]))}` : "";
+    return `${heading}\n${summary}${list}`;
   }
 
   if (looksLike(q, ["package", "destination", "popular", "tour", "offer"])) {

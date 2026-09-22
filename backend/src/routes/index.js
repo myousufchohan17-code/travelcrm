@@ -15,6 +15,7 @@ const agents = require("../controllers/agentsController");
 const reports = require("../controllers/reportsController");
 const misc = require("../controllers/miscController");
 const ai = require("../controllers/aiController");
+const inventory = require("../controllers/inventoryController");
 
 const router = express.Router();
 
@@ -31,6 +32,13 @@ router.get("/dashboard/upcoming-bookings", dashboard.upcomingBookings);
 router.get("/dashboard/top-destinations", dashboard.topDestinations);
 router.get("/search", dashboard.search);
 router.post("/ai/travel-assistant", ai.chat);
+
+router.get("/inventory/summary", inventory.summary);
+router.get("/inventory", inventory.list);
+router.get("/inventory/:id", inventory.getOne);
+router.post("/inventory", inventory.create);
+router.put("/inventory/:id", inventory.update);
+router.delete("/inventory/:id", inventory.remove);
 
 router.get("/clients", clients.list);
 router.get("/clients/:id", clients.getOne);

@@ -46,6 +46,28 @@ CREATE TABLE IF NOT EXISTS clients (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS inventory (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  category VARCHAR(40) NOT NULL DEFAULT 'Other',
+  description TEXT NULL,
+  supplier VARCHAR(150) NULL,
+  destination_id INT NULL REFERENCES destinations(id) ON DELETE SET NULL,
+  quantity INT NOT NULL DEFAULT 0,
+  available_quantity INT NOT NULL DEFAULT 0,
+  reserved_quantity INT NOT NULL DEFAULT 0,
+  low_stock_threshold INT NOT NULL DEFAULT 5,
+  unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  selling_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  location VARCHAR(150) NULL,
+  start_date DATE NULL,
+  end_date DATE NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'available',
+  notes TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS travel_packages (
   id SERIAL PRIMARY KEY,
   name VARCHAR(200) NOT NULL,
@@ -92,10 +114,15 @@ CREATE TABLE IF NOT EXISTS bookings (
   payment_status VARCHAR(20) DEFAULT 'unpaid',
   status VARCHAR(20) DEFAULT 'pending',
   assigned_agent_id INT NULL REFERENCES agents(id) ON DELETE SET NULL,
+  inventory_id INT NULL REFERENCES inventory(id) ON DELETE SET NULL,
+  inventory_quantity INT NOT NULL DEFAULT 0,
   notes TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS inventory_id INT NULL REFERENCES inventory(id) ON DELETE SET NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS inventory_quantity INT NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS booking_travelers (
   id SERIAL PRIMARY KEY,
@@ -167,6 +194,9 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_inventory_category ON inventory (category);
+CREATE INDEX IF NOT EXISTS idx_inventory_status ON inventory (status);
+CREATE INDEX IF NOT EXISTS idx_inventory_name ON inventory (name);
 CREATE INDEX IF NOT EXISTS idx_destinations_name ON destinations (name);
 CREATE INDEX IF NOT EXISTS idx_clients_name ON clients (full_name);
 CREATE INDEX IF NOT EXISTS idx_clients_email ON clients (email);

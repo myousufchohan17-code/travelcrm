@@ -127,6 +127,8 @@ async function initDatabase() {
       .join("\n");
     await pool.query(schema);
     await pool.query("ALTER TABLE agents ADD COLUMN image MEDIUMTEXT NULL").catch(() => {});
+    await pool.query("ALTER TABLE bookings ADD COLUMN inventory_id INT NULL").catch(() => {});
+    await pool.query("ALTER TABLE bookings ADD COLUMN inventory_quantity INT NOT NULL DEFAULT 0").catch(() => {});
     await pool.query("ALTER TABLE destinations MODIFY image MEDIUMTEXT NULL").catch(() => {});
     await pool.query("ALTER TABLE travel_packages MODIFY image MEDIUMTEXT NULL").catch(() => {});
     await pool.query("ALTER TABLE users MODIFY avatar MEDIUMTEXT NULL").catch(() => {});

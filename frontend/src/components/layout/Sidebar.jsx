@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import {
-  LayoutDashboard, Users, CalendarCheck, Package, Target, Clock3,
+  LayoutDashboard, Users, CalendarCheck, Package, Target, Clock3, Warehouse,
   MessageCircle, BarChart3, Settings, MapPin, UserCheck, X, Sparkles,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ const items = [
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/bookings", label: "Bookings", icon: CalendarCheck },
   { to: "/packages", label: "Packages", icon: Package },
+  { to: "/inventory", label: "Inventory", icon: Warehouse },
   { to: "/leads", label: "Leads", icon: Target },
   { to: "/follow-ups", label: "Follow Ups", icon: Clock3 },
   { to: "/agents", label: "Assigned Agents", icon: UserCheck },

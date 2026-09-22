@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import api, { errorMessage, formatDate, money } from "../../api/client";
 import { useUi } from "../../context/UiContext";
 import { ConfirmModal, Modal, StatusBadge } from "../ui/Common";
-import { BookingForm, ClientForm, FollowUpForm, LeadForm, PackageForm } from "../forms/Forms";
+import { BookingForm, ClientForm, FollowUpForm, InventoryForm, LeadForm, PackageForm } from "../forms/Forms";
 
 export default function GlobalModals() {
   const { modal, closeModal, toast, invalidateAll, confirm, setConfirm } = useUi();
@@ -78,6 +78,11 @@ export default function GlobalModals() {
           />
         </Modal>
       )}
+      {modal?.type === "inventory" && (
+        <Modal title={modal.payload ? "Edit Inventory" : "Add Inventory"} onClose={closeModal} wide>
+          <InventoryForm initial={modal.payload} submitting={saving} onSubmit={(body) => save(() => modal.payload ? api.put(`/inventory/${modal.payload.id}`, body) : api.post("/inventory", body))} />
+        </Modal>
+      )}
       {modal?.type === "lead" && (
         <Modal title={modal.payload ? "Edit Lead" : "Add Lead"} onClose={closeModal}>
           <LeadForm
@@ -103,6 +108,7 @@ export default function GlobalModals() {
       {modal?.type === "view-client" && <ViewModal title="Client details" data={modal.payload} onClose={closeModal} />}
       {modal?.type === "view-booking" && <BookingView id={modal.payload?.id} onClose={closeModal} />}
       {modal?.type === "view-package" && <ViewModal title="Package details" data={modal.payload} onClose={closeModal} />}
+      {modal?.type === "view-inventory" && <ViewModal title="Inventory details" data={modal.payload} onClose={closeModal} />}
       {modal?.type === "view-lead" && <ViewModal title="Lead details" data={modal.payload} onClose={closeModal} />}
       {modal?.type === "view-followup" && <ViewModal title="Follow-up details" data={modal.payload} onClose={closeModal} />}
       {modal?.type === "message" && <MessageCompose onClose={closeModal} />}

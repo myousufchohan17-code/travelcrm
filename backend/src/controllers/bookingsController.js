@@ -1,5 +1,6 @@
 const { query } = require("../config/db");
 const { logActivity, notify, parsePositiveInt } = require("../utils/helpers");
+const { adjustReservation } = require("./inventoryController");
 
 const STATUSES = ["pending", "confirmed", "processing", "cancelled", "completed"];
 const PAYMENTS = ["unpaid", "partial", "paid", "refunded"];
@@ -83,13 +84,16 @@ async function create(req, res, next) {
     if (errors.length) return res.status(400).json({ message: errors[0], errors });
     const {
       client_id, package_id, destination_id, departure_date, return_date,
-      travelers, total_amount, payment_status, status, assigned_agent_id, notes,
+      travelers, total_amount, payment_status, status, assigned_agent_id, inventory_id, inventory_quantity, notes,
     } = req.body;
+    const inventoryQuantity = Number(inventory_quantity) || 0;
+    if (inventoryQuantity < 0 || (inventoryQuantity && !inventory_id)) return res.status(400).json({ message: "Select an inventory item and a valid quantity" });
+    if (inventory_id && inventoryQuantity && status !== "cancelled") await adjustReservation(inventory_id, inventoryQuantity);
     const result = await query(
       `INSERT INTO bookings
         (client_id, package_id, destination_id, departure_date, return_date, travelers,
-         total_amount, payment_status, status, assigned_agent_id, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         total_amount, payment_status, status, assigned_agent_id, inventory_id, inventory_quantity, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         client_id,
         package_id || null,
@@ -101,6 +105,8 @@ async function create(req, res, next) {
         payment_status || "unpaid",
         status || "pending",
         assigned_agent_id || null,
+        inventory_id || null,
+        inventoryQuantity,
         notes || null,
       ]
     );
@@ -117,16 +123,21 @@ async function update(req, res, next) {
   try {
     const errors = validateBooking(req.body);
     if (errors.length) return res.status(400).json({ message: errors[0], errors });
-    const existing = await query("SELECT id FROM bookings WHERE id = ?", [req.params.id]);
+    const existing = await query("SELECT * FROM bookings WHERE id = ?", [req.params.id]);
     if (!existing.length) return res.status(404).json({ message: "Booking not found" });
     const {
       client_id, package_id, destination_id, departure_date, return_date,
-      travelers, total_amount, payment_status, status, assigned_agent_id, notes,
+      travelers, total_amount, payment_status, status, assigned_agent_id, inventory_id, inventory_quantity, notes,
     } = req.body;
+    const inventoryQuantity = Number(inventory_quantity) || 0;
+    if (inventoryQuantity < 0 || (inventoryQuantity && !inventory_id)) return res.status(400).json({ message: "Select an inventory item and a valid quantity" });
+    const old = existing[0];
+    if (old.inventory_id && Number(old.inventory_quantity) && old.status !== "cancelled") await adjustReservation(old.inventory_id, -Number(old.inventory_quantity));
+    if (inventory_id && inventoryQuantity && status !== "cancelled") await adjustReservation(inventory_id, inventoryQuantity);
     await query(
       `UPDATE bookings SET
         client_id = ?, package_id = ?, destination_id = ?, departure_date = ?, return_date = ?,
-        travelers = ?, total_amount = ?, payment_status = ?, status = ?, assigned_agent_id = ?, notes = ?
+        travelers = ?, total_amount = ?, payment_status = ?, status = ?, assigned_agent_id = ?, inventory_id = ?, inventory_quantity = ?, notes = ?
        WHERE id = ?`,
       [
         client_id,
@@ -139,6 +150,8 @@ async function update(req, res, next) {
         payment_status || "unpaid",
         status || "pending",
         assigned_agent_id || null,
+        inventory_id || null,
+        inventoryQuantity,
         notes || null,
         req.params.id,
       ]
@@ -157,8 +170,13 @@ async function patchStatus(req, res, next) {
     if (!STATUSES.includes(status)) {
       return res.status(400).json({ message: "Invalid booking status" });
     }
-    const existing = await query("SELECT id FROM bookings WHERE id = ?", [req.params.id]);
+    const existing = await query("SELECT * FROM bookings WHERE id = ?", [req.params.id]);
     if (!existing.length) return res.status(404).json({ message: "Booking not found" });
+    const booking = existing[0];
+    if (booking.inventory_id && Number(booking.inventory_quantity)) {
+      if (booking.status !== "cancelled" && status === "cancelled") await adjustReservation(booking.inventory_id, -Number(booking.inventory_quantity));
+      if (booking.status === "cancelled" && status !== "cancelled") await adjustReservation(booking.inventory_id, Number(booking.inventory_quantity));
+    }
     await query("UPDATE bookings SET status = ? WHERE id = ?", [status, req.params.id]);
     await logActivity(req.user.id, "updated", "booking", req.params.id, `Booking status set to ${status}`);
     const rows = await query(`${SELECT} WHERE b.id = ?`, [req.params.id]);
@@ -187,8 +205,9 @@ async function patchAgent(req, res, next) {
 
 async function remove(req, res, next) {
   try {
-    const existing = await query("SELECT id FROM bookings WHERE id = ?", [req.params.id]);
+    const existing = await query("SELECT * FROM bookings WHERE id = ?", [req.params.id]);
     if (!existing.length) return res.status(404).json({ message: "Booking not found" });
+    if (existing[0].inventory_id && Number(existing[0].inventory_quantity) && existing[0].status !== "cancelled") await adjustReservation(existing[0].inventory_id, -Number(existing[0].inventory_quantity));
     await query("DELETE FROM bookings WHERE id = ?", [req.params.id]);
     await logActivity(req.user.id, "deleted", "booking", Number(req.params.id), "Booking deleted");
     res.json({ success: true });

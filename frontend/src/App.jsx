@@ -12,6 +12,7 @@ import Messages from "./pages/Messages";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import AiAssistant from "./pages/AiAssistant";
+import Inventory from "./pages/Inventory";
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/ai-assistant" element={<AiAssistant />} />
+        <Route path="/inventory" element={<Inventory />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -95,6 +95,8 @@ const emptyBooking = {
   payment_status: "unpaid",
   status: "pending",
   assigned_agent_id: "",
+  inventory_id: "",
+  inventory_quantity: 0,
   notes: "",
 };
 
@@ -104,6 +106,7 @@ export function BookingForm({ initial, onSubmit, submitting }) {
   const packages = useQuery({ queryKey: ["packages-all"], queryFn: async () => (await api.get("/packages", { params: { limit: 50 } })).data.data });
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: async () => (await api.get("/destinations")).data });
   const agents = useQuery({ queryKey: ["agents"], queryFn: async () => (await api.get("/agents")).data });
+  const inventory = useQuery({ queryKey: ["inventory-for-booking"], queryFn: async () => (await api.get("/inventory", { params: { limit: 50, availability: "available" } })).data.data });
 
   useEffect(() => {
     if (initial) {
@@ -114,6 +117,8 @@ export function BookingForm({ initial, onSubmit, submitting }) {
         package_id: initial.package_id || "",
         destination_id: initial.destination_id || "",
         assigned_agent_id: initial.assigned_agent_id || "",
+        inventory_id: initial.inventory_id || "",
+        inventory_quantity: initial.inventory_quantity || 0,
         travelers: initial.travelers || 1,
         total_amount: initial.total_amount ?? "",
       });
@@ -145,6 +150,8 @@ export function BookingForm({ initial, onSubmit, submitting }) {
           package_id: form.package_id || null,
           destination_id: form.destination_id || null,
           assigned_agent_id: form.assigned_agent_id || null,
+          inventory_id: form.inventory_id || null,
+          inventory_quantity: Number(form.inventory_quantity) || 0,
           travelers: Number(form.travelers) || 1,
           total_amount: Number(form.total_amount) || 0,
         });
@@ -178,6 +185,17 @@ export function BookingForm({ initial, onSubmit, submitting }) {
           <option value="">Unassigned</option>
           {(agents.data || []).map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
         </select>
+      </div>
+      <div>
+        <label className="label">Reserve Inventory</label>
+        <select className="input" value={form.inventory_id} onChange={(e) => set("inventory_id", e.target.value)}>
+          <option value="">No inventory reservation</option>
+          {(inventory.data || []).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.available_quantity} available)</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="label">Inventory Quantity</label>
+        <input className="input" type="number" min="0" disabled={!form.inventory_id} value={form.inventory_quantity} onChange={(e) => set("inventory_quantity", e.target.value)} />
       </div>
       <div>
         <label className="label">Departure Date *</label>
@@ -236,6 +254,35 @@ const emptyPackage = {
   excluded_services: "",
   status: "active",
 };
+
+const emptyInventory = { name: "", category: "Hotels", description: "", supplier: "", destination_id: "", quantity: 0, available_quantity: "", reserved_quantity: 0, low_stock_threshold: 5, unit_cost: "", selling_price: "", location: "", start_date: "", end_date: "", status: "available", notes: "" };
+const inventoryCategories = ["Hotels", "Rooms", "Flights / Seats", "Transport", "Vehicles", "Travel Packages", "Tours", "Activities", "Visa Services", "Other"];
+
+export function InventoryForm({ initial, onSubmit, submitting }) {
+  const [form, setForm] = useState(emptyInventory);
+  const destinations = useQuery({ queryKey: ["destinations"], queryFn: async () => (await api.get("/destinations")).data });
+  useEffect(() => { if (initial) setForm({ ...emptyInventory, ...initial, destination_id: initial.destination_id || "", available_quantity: initial.available_quantity ?? "", reserved_quantity: initial.reserved_quantity ?? 0, quantity: initial.quantity ?? 0 }); }, [initial]);
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  return <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); onSubmit({ ...form, destination_id: form.destination_id || null, quantity: Number(form.quantity), available_quantity: form.available_quantity === "" ? null : Number(form.available_quantity), reserved_quantity: Number(form.reserved_quantity), low_stock_threshold: Number(form.low_stock_threshold), unit_cost: Number(form.unit_cost) || 0, selling_price: Number(form.selling_price) || 0 }); }}>
+    <div className="sm:col-span-2"><label className="label">Item Name *</label><input className="input" required value={form.name} onChange={(e) => set("name", e.target.value)} /></div>
+    <div><label className="label">Category *</label><select className="input" value={form.category} onChange={(e) => set("category", e.target.value)}>{inventoryCategories.map((item) => <option key={item}>{item}</option>)}</select></div>
+    <div><label className="label">Supplier / Provider</label><input className="input" value={form.supplier || ""} onChange={(e) => set("supplier", e.target.value)} /></div>
+    <div><label className="label">Destination</label><select className="input" value={form.destination_id} onChange={(e) => set("destination_id", e.target.value)}><option value="">Select destination</option>{(destinations.data || []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+    <div><label className="label">Location</label><input className="input" value={form.location || ""} onChange={(e) => set("location", e.target.value)} /></div>
+    <div><label className="label">Total Quantity *</label><input className="input" type="number" min="0" required value={form.quantity} onChange={(e) => set("quantity", e.target.value)} /></div>
+    <div><label className="label">Available Quantity</label><input className="input" type="number" min="0" value={form.available_quantity} onChange={(e) => set("available_quantity", e.target.value)} /><p className="mt-1 text-[10px] text-slate-400">Leave blank to calculate from total minus reserved.</p></div>
+    <div><label className="label">Reserved Quantity</label><input className="input" type="number" min="0" value={form.reserved_quantity} onChange={(e) => set("reserved_quantity", e.target.value)} /></div>
+    <div><label className="label">Low Availability Threshold</label><input className="input" type="number" min="0" value={form.low_stock_threshold} onChange={(e) => set("low_stock_threshold", e.target.value)} /></div>
+    <div><label className="label">Unit Cost</label><input className="input" type="number" min="0" step="0.01" value={form.unit_cost} onChange={(e) => set("unit_cost", e.target.value)} /></div>
+    <div><label className="label">Selling Price</label><input className="input" type="number" min="0" step="0.01" value={form.selling_price} onChange={(e) => set("selling_price", e.target.value)} /></div>
+    <div><label className="label">Start Date</label><input className="input" type="date" value={form.start_date || ""} onChange={(e) => set("start_date", e.target.value)} /></div>
+    <div><label className="label">End Date</label><input className="input" type="date" value={form.end_date || ""} onChange={(e) => set("end_date", e.target.value)} /></div>
+    <div><label className="label">Status</label><select className="input" value={form.status} onChange={(e) => set("status", e.target.value)}><option value="available">Available</option><option value="inactive">Inactive</option></select></div>
+    <div className="sm:col-span-2"><label className="label">Description</label><textarea className="input min-h-[70px]" value={form.description || ""} onChange={(e) => set("description", e.target.value)} /></div>
+    <div className="sm:col-span-2"><label className="label">Notes</label><textarea className="input min-h-[70px]" value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} /></div>
+    <div className="sm:col-span-2 flex justify-end"><button className="btn-primary" disabled={submitting}>{submitting ? "Saving..." : "Save Inventory"}</button></div>
+  </form>;
+}
 
 export function PackageForm({ initial, onSubmit, submitting }) {
   const [form, setForm] = useState(emptyPackage);

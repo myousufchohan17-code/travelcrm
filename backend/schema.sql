@@ -56,6 +56,32 @@ CREATE TABLE IF NOT EXISTS clients (
   INDEX idx_clients_phone (phone)
 );
 
+CREATE TABLE IF NOT EXISTS inventory (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  category ENUM('Hotels','Rooms','Flights / Seats','Transport','Vehicles','Travel Packages','Tours','Activities','Visa Services','Other') NOT NULL DEFAULT 'Other',
+  description TEXT NULL,
+  supplier VARCHAR(150) NULL,
+  destination_id INT NULL,
+  quantity INT NOT NULL DEFAULT 0,
+  available_quantity INT NOT NULL DEFAULT 0,
+  reserved_quantity INT NOT NULL DEFAULT 0,
+  low_stock_threshold INT NOT NULL DEFAULT 5,
+  unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  selling_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  location VARCHAR(150) NULL,
+  start_date DATE NULL,
+  end_date DATE NULL,
+  status ENUM('available','reserved','low_availability','out_of_stock','inactive') NOT NULL DEFAULT 'available',
+  notes TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_inventory_destination FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE SET NULL,
+  INDEX idx_inventory_category (category),
+  INDEX idx_inventory_status (status),
+  INDEX idx_inventory_name (name)
+);
+
 CREATE TABLE IF NOT EXISTS travel_packages (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(200) NOT NULL,
@@ -111,10 +137,13 @@ CREATE TABLE IF NOT EXISTS bookings (
   payment_status ENUM('unpaid','partial','paid','refunded') DEFAULT 'unpaid',
   status ENUM('pending','confirmed','processing','cancelled','completed') DEFAULT 'pending',
   assigned_agent_id INT NULL,
+  inventory_id INT NULL,
+  inventory_quantity INT NOT NULL DEFAULT 0,
   notes TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_bookings_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
+  CONSTRAINT fk_bookings_inventory FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE SET NULL,
   CONSTRAINT fk_bookings_package FOREIGN KEY (package_id) REFERENCES travel_packages(id) ON DELETE SET NULL,
   CONSTRAINT fk_bookings_destination FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE SET NULL,
   CONSTRAINT fk_bookings_agent FOREIGN KEY (assigned_agent_id) REFERENCES agents(id) ON DELETE SET NULL,

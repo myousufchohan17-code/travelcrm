@@ -538,6 +538,23 @@ async function getTravelSummary() {
   };
 }
 
+async function getInventory(args = {}) {
+  const category = String(args.category || "").trim();
+  const destination = String(args.destination || "").trim();
+  const mode = String(args.mode || "all").toLowerCase();
+  const clauses = ["1=1"];
+  const params = [];
+  if (category) { clauses.push("LOWER(i.category) = ?"); params.push(category.toLowerCase()); }
+  if (destination) { clauses.push("LOWER(COALESCE(d.name, '')) LIKE ?"); params.push(like(destination)); }
+  if (mode === "available") clauses.push("i.available_quantity > 0");
+  if (mode === "low") clauses.push("i.available_quantity > 0 AND i.available_quantity <= i.low_stock_threshold");
+  if (mode === "out") clauses.push("i.available_quantity = 0");
+  if (mode === "reserved") clauses.push("i.reserved_quantity > 0");
+  const rows = await query(`SELECT i.name, i.category, i.available_quantity, i.reserved_quantity, i.quantity, i.status, i.supplier, d.name AS destination FROM inventory i LEFT JOIN destinations d ON d.id=i.destination_id WHERE ${clauses.join(" AND ")} ORDER BY i.available_quantity ASC, i.name ASC LIMIT 20`, params);
+  const [summary] = await query("SELECT COUNT(*) AS total_items, COALESCE(SUM(available_quantity),0) AS available, COALESCE(SUM(reserved_quantity),0) AS reserved, COALESCE(SUM(CASE WHEN status = 'low_availability' THEN 1 ELSE 0 END),0) AS low_items, COALESCE(SUM(CASE WHEN status = 'out_of_stock' THEN 1 ELSE 0 END),0) AS out_items FROM inventory");
+  return { total_items: num(summary?.total_items), available: num(summary?.available), reserved: num(summary?.reserved), low_items: num(summary?.low_items), out_items: num(summary?.out_items), results: rows.map((row) => ({ ...row, available_quantity: num(row.available_quantity), reserved_quantity: num(row.reserved_quantity), quantity: num(row.quantity) })) };
+}
+
 const handlers = {
   getCustomers,
   searchCustomer,
@@ -548,6 +565,7 @@ const handlers = {
   getRevenueSummary,
   getFollowUps,
   getTravelSummary,
+  getInventory,
 };
 
 async function runTool(name, rawArgs = {}) {
