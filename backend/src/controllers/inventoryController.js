@@ -23,7 +23,13 @@ function normalize(body, existing = {}) {
   const available = body.available_quantity === "" || body.available_quantity == null
     ? Math.max(0, quantity - reserved)
     : asInt(body.available_quantity, 0);
-  const item = { quantity, reserved_quantity: reserved, available_quantity: available, low_stock_threshold: asInt(body.low_stock_threshold, existing.low_stock_threshold ?? 5) };
+  const item = {
+    quantity,
+    reserved_quantity: reserved,
+    available_quantity: available,
+    low_stock_threshold: asInt(body.low_stock_threshold, existing.low_stock_threshold ?? 5),
+    availability_status: String(body.availability_status || body.status || existing.availability_status || existing.status || "available").toLowerCase(),
+  };
   if (available + reserved !== quantity) return { error: "Total quantity must equal available quantity plus reserved quantity" };
   if (available < 0 || reserved < 0) return { error: "Inventory quantities cannot be negative" };
   const requested = String(body.status || existing.status || "available").toLowerCase();
@@ -31,6 +37,51 @@ function normalize(body, existing = {}) {
 }
 
 const SELECT = `SELECT i.*, d.name AS destination_name FROM inventory i LEFT JOIN destinations d ON d.id = i.destination_id`;
+
+function formatDateValue(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  if (typeof value === "string") {
+    return value.slice(0, 10);
+  }
+  return String(value).slice(0, 10);
+}
+
+function formatDateTimeValue(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    const hours = String(value.getHours()).padStart(2, "0");
+    const minutes = String(value.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    const datePart = trimmed.slice(0, 10);
+    const timePart = trimmed.includes("T") ? trimmed.slice(11, 16) : trimmed.slice(10, 16);
+    return datePart && timePart ? `${datePart}T${timePart}` : trimmed.slice(0, 16);
+  }
+  return String(value).slice(0, 16);
+}
+
+function normalizeInventoryRow(row = {}) {
+  return {
+    ...row,
+    start_date: formatDateValue(row.start_date),
+    end_date: formatDateValue(row.end_date),
+    valid_from: formatDateValue(row.valid_from),
+    valid_until: formatDateValue(row.valid_until),
+    departure_date_time: formatDateTimeValue(row.departure_date_time),
+    return_date_time: formatDateTimeValue(row.return_date_time),
+  };
+}
 
 async function list(req, res, next) {
   try {
@@ -53,7 +104,7 @@ async function list(req, res, next) {
     const order = sortMap[req.query.sort] || sortMap.newest;
     const [count] = await query(`SELECT COUNT(*) AS count FROM inventory i LEFT JOIN destinations d ON d.id = i.destination_id${where}`, params);
     const data = await query(`${SELECT}${where} ORDER BY ${order} LIMIT ${limit} OFFSET ${(page - 1) * limit}`, params);
-    res.json({ data, total: Number(count.count), page, limit });
+    res.json({ data: data.map(normalizeInventoryRow), total: Number(count.count), page, limit });
   } catch (err) { next(err); }
 }
 
@@ -65,7 +116,7 @@ async function summary(_req, res, next) {
 }
 
 async function getOne(req, res, next) {
-  try { const rows = await query(`${SELECT} WHERE i.id = ?`, [req.params.id]); if (!rows.length) return res.status(404).json({ message: "Inventory item not found" }); res.json(rows[0]); } catch (err) { next(err); }
+  try { const rows = await query(`${SELECT} WHERE i.id = ?`, [req.params.id]); if (!rows.length) return res.status(404).json({ message: "Inventory item not found" }); res.json(normalizeInventoryRow(rows[0])); } catch (err) { next(err); }
 }
 
 async function create(req, res, next) {
@@ -74,9 +125,43 @@ async function create(req, res, next) {
     if (!CATEGORIES.includes(req.body.category)) return res.status(400).json({ message: "A valid category is required" });
     const values = normalize(req.body);
     if (values.error) return res.status(400).json({ message: values.error });
-    const result = await query(`INSERT INTO inventory (name, category, description, supplier, destination_id, quantity, available_quantity, reserved_quantity, low_stock_threshold, unit_cost, selling_price, location, start_date, end_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [req.body.name.trim(), req.body.category, req.body.description || null, req.body.supplier || null, req.body.destination_id || null, values.quantity, values.available_quantity, values.reserved_quantity, values.low_stock_threshold, Number(req.body.unit_cost) || 0, Number(req.body.selling_price) || 0, req.body.location || null, req.body.start_date || null, req.body.end_date || null, values.status, req.body.notes || null]);
+    const payload = {
+      name: req.body.name.trim(),
+      category: req.body.category,
+      description: req.body.description || null,
+      supplier: req.body.supplier || null,
+      supplier_reference: req.body.supplier_reference || null,
+      destination_id: req.body.destination_id || null,
+      destination_country: req.body.destination_country || req.body.country || null,
+      city_location: req.body.city_location || req.body.location || null,
+      departure_location: req.body.departure_location || null,
+      arrival_location: req.body.arrival_location || null,
+      quantity: values.quantity,
+      available_quantity: values.available_quantity,
+      reserved_quantity: values.reserved_quantity,
+      low_stock_threshold: values.low_stock_threshold,
+      unit_cost: Number(req.body.unit_cost) || 0,
+      selling_price: Number(req.body.selling_price) || 0,
+      currency: req.body.currency || "USD",
+      price_type: req.body.price_type || "fixed",
+      markup_profit: Number(req.body.markup_profit) || 0,
+      location: req.body.location || req.body.city_location || null,
+      start_date: req.body.start_date || null,
+      end_date: req.body.end_date || null,
+      valid_from: req.body.valid_from || null,
+      valid_until: req.body.valid_until || null,
+      departure_date_time: req.body.departure_date_time || null,
+      return_date_time: req.body.return_date_time || null,
+      availability_status: values.availability_status || values.status,
+      status: values.status,
+      inclusions: req.body.inclusions || null,
+      exclusions: req.body.exclusions || null,
+      terms_conditions: req.body.terms_conditions || null,
+      notes: req.body.notes || null,
+    };
+    const result = await query(`INSERT INTO inventory (name, category, description, supplier, supplier_reference, destination_id, destination_country, city_location, departure_location, arrival_location, quantity, available_quantity, reserved_quantity, low_stock_threshold, unit_cost, selling_price, currency, price_type, markup_profit, location, start_date, end_date, valid_from, valid_until, departure_date_time, return_date_time, availability_status, status, inclusions, exclusions, terms_conditions, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [payload.name, payload.category, payload.description, payload.supplier, payload.supplier_reference, payload.destination_id, payload.destination_country, payload.city_location, payload.departure_location, payload.arrival_location, payload.quantity, payload.available_quantity, payload.reserved_quantity, payload.low_stock_threshold, payload.unit_cost, payload.selling_price, payload.currency, payload.price_type, payload.markup_profit, payload.location, payload.start_date, payload.end_date, payload.valid_from, payload.valid_until, payload.departure_date_time, payload.return_date_time, payload.availability_status, payload.status, payload.inclusions, payload.exclusions, payload.terms_conditions, payload.notes]);
     await logActivity(req.user.id, "created", "inventory", result.insertId, "Inventory item created");
-    const rows = await query(`${SELECT} WHERE i.id = ?`, [result.insertId]); res.status(201).json(rows[0]);
+    const rows = await query(`${SELECT} WHERE i.id = ?`, [result.insertId]); res.status(201).json(normalizeInventoryRow(rows[0]));
   } catch (err) { next(err); }
 }
 
@@ -86,9 +171,43 @@ async function update(req, res, next) {
     if (!existing.length) return res.status(404).json({ message: "Inventory item not found" });
     if (!String(req.body.name || "").trim() || !CATEGORIES.includes(req.body.category)) return res.status(400).json({ message: "Item name and a valid category are required" });
     const values = normalize(req.body, existing[0]); if (values.error) return res.status(400).json({ message: values.error });
-    await query(`UPDATE inventory SET name=?, category=?, description=?, supplier=?, destination_id=?, quantity=?, available_quantity=?, reserved_quantity=?, low_stock_threshold=?, unit_cost=?, selling_price=?, location=?, start_date=?, end_date=?, status=?, notes=? WHERE id=?`, [req.body.name.trim(), req.body.category, req.body.description || null, req.body.supplier || null, req.body.destination_id || null, values.quantity, values.available_quantity, values.reserved_quantity, values.low_stock_threshold, Number(req.body.unit_cost) || 0, Number(req.body.selling_price) || 0, req.body.location || null, req.body.start_date || null, req.body.end_date || null, values.status, req.body.notes || null, req.params.id]);
+    const payload = {
+      name: req.body.name.trim(),
+      category: req.body.category,
+      description: req.body.description || null,
+      supplier: req.body.supplier || null,
+      supplier_reference: req.body.supplier_reference || null,
+      destination_id: req.body.destination_id || null,
+      destination_country: req.body.destination_country || req.body.country || null,
+      city_location: req.body.city_location || req.body.location || null,
+      departure_location: req.body.departure_location || null,
+      arrival_location: req.body.arrival_location || null,
+      quantity: values.quantity,
+      available_quantity: values.available_quantity,
+      reserved_quantity: values.reserved_quantity,
+      low_stock_threshold: values.low_stock_threshold,
+      unit_cost: Number(req.body.unit_cost) || 0,
+      selling_price: Number(req.body.selling_price) || 0,
+      currency: req.body.currency || "USD",
+      price_type: req.body.price_type || "fixed",
+      markup_profit: Number(req.body.markup_profit) || 0,
+      location: req.body.location || req.body.city_location || null,
+      start_date: req.body.start_date || null,
+      end_date: req.body.end_date || null,
+      valid_from: req.body.valid_from || null,
+      valid_until: req.body.valid_until || null,
+      departure_date_time: req.body.departure_date_time || null,
+      return_date_time: req.body.return_date_time || null,
+      availability_status: values.availability_status || values.status,
+      status: values.status,
+      inclusions: req.body.inclusions || null,
+      exclusions: req.body.exclusions || null,
+      terms_conditions: req.body.terms_conditions || null,
+      notes: req.body.notes || null,
+    };
+    await query(`UPDATE inventory SET name=?, category=?, description=?, supplier=?, supplier_reference=?, destination_id=?, destination_country=?, city_location=?, departure_location=?, arrival_location=?, quantity=?, available_quantity=?, reserved_quantity=?, low_stock_threshold=?, unit_cost=?, selling_price=?, currency=?, price_type=?, markup_profit=?, location=?, start_date=?, end_date=?, valid_from=?, valid_until=?, departure_date_time=?, return_date_time=?, availability_status=?, status=?, inclusions=?, exclusions=?, terms_conditions=?, notes=? WHERE id=?`, [payload.name, payload.category, payload.description, payload.supplier, payload.supplier_reference, payload.destination_id, payload.destination_country, payload.city_location, payload.departure_location, payload.arrival_location, payload.quantity, payload.available_quantity, payload.reserved_quantity, payload.low_stock_threshold, payload.unit_cost, payload.selling_price, payload.currency, payload.price_type, payload.markup_profit, payload.location, payload.start_date, payload.end_date, payload.valid_from, payload.valid_until, payload.departure_date_time, payload.return_date_time, payload.availability_status, payload.status, payload.inclusions, payload.exclusions, payload.terms_conditions, payload.notes, req.params.id]);
     await logActivity(req.user.id, "updated", "inventory", req.params.id, "Inventory item updated");
-    const rows = await query(`${SELECT} WHERE i.id = ?`, [req.params.id]); res.json(rows[0]);
+    const rows = await query(`${SELECT} WHERE i.id = ?`, [req.params.id]); res.json(normalizeInventoryRow(rows[0]));
   } catch (err) { next(err); }
 }
 

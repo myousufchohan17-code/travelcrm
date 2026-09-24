@@ -255,33 +255,170 @@ const emptyPackage = {
   status: "active",
 };
 
-const emptyInventory = { name: "", category: "Hotels", description: "", supplier: "", destination_id: "", quantity: 0, available_quantity: "", reserved_quantity: 0, low_stock_threshold: 5, unit_cost: "", selling_price: "", location: "", start_date: "", end_date: "", status: "available", notes: "" };
+const emptyInventory = {
+  name: "",
+  category: "Hotels",
+  supplier: "",
+  supplier_reference: "",
+  destination_id: "",
+  destination_country: "",
+  city_location: "",
+  departure_location: "",
+  arrival_location: "",
+  quantity: 0,
+  available_quantity: "",
+  reserved_quantity: 0,
+  low_stock_threshold: 5,
+  unit_cost: "",
+  selling_price: "",
+  currency: "USD",
+  price_type: "fixed",
+  markup_profit: "",
+  location: "",
+  start_date: "",
+  end_date: "",
+  valid_from: "",
+  valid_until: "",
+  departure_date_time: "",
+  return_date_time: "",
+  status: "available",
+  description: "",
+  inclusions: "",
+  exclusions: "",
+  terms_conditions: "",
+  notes: "",
+};
 const inventoryCategories = ["Hotels", "Rooms", "Flights / Seats", "Transport", "Vehicles", "Travel Packages", "Tours", "Activities", "Visa Services", "Other"];
 
 export function InventoryForm({ initial, onSubmit, submitting }) {
   const [form, setForm] = useState(emptyInventory);
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: async () => (await api.get("/destinations")).data });
-  useEffect(() => { if (initial) setForm({ ...emptyInventory, ...initial, destination_id: initial.destination_id || "", available_quantity: initial.available_quantity ?? "", reserved_quantity: initial.reserved_quantity ?? 0, quantity: initial.quantity ?? 0 }); }, [initial]);
+  useEffect(() => {
+    if (initial) {
+      setForm({
+        ...emptyInventory,
+        ...initial,
+        destination_id: initial.destination_id || "",
+        available_quantity: initial.available_quantity ?? "",
+        reserved_quantity: initial.reserved_quantity ?? 0,
+        quantity: initial.quantity ?? 0,
+        currency: initial.currency || "USD",
+        price_type: initial.price_type || "fixed",
+        destination_country: initial.destination_country || "",
+        city_location: initial.city_location || "",
+        departure_location: initial.departure_location || "",
+        arrival_location: initial.arrival_location || "",
+        supplier_reference: initial.supplier_reference || "",
+        valid_from: initial.valid_from || "",
+        valid_until: initial.valid_until || "",
+        departure_date_time: initial.departure_date_time || "",
+        return_date_time: initial.return_date_time || "",
+        inclusions: initial.inclusions || "",
+        exclusions: initial.exclusions || "",
+        terms_conditions: initial.terms_conditions || "",
+      });
+    }
+  }, [initial]);
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  return <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); onSubmit({ ...form, destination_id: form.destination_id || null, quantity: Number(form.quantity), available_quantity: form.available_quantity === "" ? null : Number(form.available_quantity), reserved_quantity: Number(form.reserved_quantity), low_stock_threshold: Number(form.low_stock_threshold), unit_cost: Number(form.unit_cost) || 0, selling_price: Number(form.selling_price) || 0 }); }}>
-    <div className="sm:col-span-2"><label className="label">Item Name *</label><input className="input" required value={form.name} onChange={(e) => set("name", e.target.value)} /></div>
-    <div><label className="label">Category *</label><select className="input" value={form.category} onChange={(e) => set("category", e.target.value)}>{inventoryCategories.map((item) => <option key={item}>{item}</option>)}</select></div>
-    <div><label className="label">Supplier / Provider</label><input className="input" value={form.supplier || ""} onChange={(e) => set("supplier", e.target.value)} /></div>
-    <div><label className="label">Destination</label><select className="input" value={form.destination_id} onChange={(e) => set("destination_id", e.target.value)}><option value="">Select destination</option>{(destinations.data || []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
-    <div><label className="label">Location</label><input className="input" value={form.location || ""} onChange={(e) => set("location", e.target.value)} /></div>
-    <div><label className="label">Total Quantity *</label><input className="input" type="number" min="0" required value={form.quantity} onChange={(e) => set("quantity", e.target.value)} /></div>
-    <div><label className="label">Available Quantity</label><input className="input" type="number" min="0" value={form.available_quantity} onChange={(e) => set("available_quantity", e.target.value)} /><p className="mt-1 text-[10px] text-slate-400">Leave blank to calculate from total minus reserved.</p></div>
-    <div><label className="label">Reserved Quantity</label><input className="input" type="number" min="0" value={form.reserved_quantity} onChange={(e) => set("reserved_quantity", e.target.value)} /></div>
-    <div><label className="label">Low Availability Threshold</label><input className="input" type="number" min="0" value={form.low_stock_threshold} onChange={(e) => set("low_stock_threshold", e.target.value)} /></div>
-    <div><label className="label">Unit Cost</label><input className="input" type="number" min="0" step="0.01" value={form.unit_cost} onChange={(e) => set("unit_cost", e.target.value)} /></div>
-    <div><label className="label">Selling Price</label><input className="input" type="number" min="0" step="0.01" value={form.selling_price} onChange={(e) => set("selling_price", e.target.value)} /></div>
-    <div><label className="label">Start Date</label><input className="input" type="date" value={form.start_date || ""} onChange={(e) => set("start_date", e.target.value)} /></div>
-    <div><label className="label">End Date</label><input className="input" type="date" value={form.end_date || ""} onChange={(e) => set("end_date", e.target.value)} /></div>
-    <div><label className="label">Status</label><select className="input" value={form.status} onChange={(e) => set("status", e.target.value)}><option value="available">Available</option><option value="inactive">Inactive</option></select></div>
-    <div className="sm:col-span-2"><label className="label">Description</label><textarea className="input min-h-[70px]" value={form.description || ""} onChange={(e) => set("description", e.target.value)} /></div>
-    <div className="sm:col-span-2"><label className="label">Notes</label><textarea className="input min-h-[70px]" value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} /></div>
-    <div className="sm:col-span-2 flex justify-end"><button className="btn-primary" disabled={submitting}>{submitting ? "Saving..." : "Save Inventory"}</button></div>
-  </form>;
+
+  const sectionClass = "rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:p-4";
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit({
+          ...form,
+          destination_id: form.destination_id || null,
+          destination_country: form.destination_country || null,
+          city_location: form.city_location || null,
+          departure_location: form.departure_location || null,
+          arrival_location: form.arrival_location || null,
+          supplier_reference: form.supplier_reference || null,
+          quantity: Number(form.quantity),
+          available_quantity: form.available_quantity === "" ? null : Number(form.available_quantity),
+          reserved_quantity: Number(form.reserved_quantity),
+          low_stock_threshold: Number(form.low_stock_threshold),
+          unit_cost: Number(form.unit_cost) || 0,
+          selling_price: Number(form.selling_price) || 0,
+          markup_profit: Number(form.markup_profit) || 0,
+          valid_from: form.valid_from || null,
+          valid_until: form.valid_until || null,
+          departure_date_time: form.departure_date_time || null,
+          return_date_time: form.return_date_time || null,
+          status: form.status,
+          availability_status: form.status,
+        });
+      }}
+    >
+      <div className={sectionClass}>
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Inventory Information</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2"><label className="label">Inventory Name *</label><input className="input" required value={form.name} onChange={(e) => set("name", e.target.value)} /></div>
+          <div><label className="label">Category *</label><select className="input" value={form.category} onChange={(e) => set("category", e.target.value)}>{inventoryCategories.map((item) => <option key={item}>{item}</option>)}</select></div>
+          <div><label className="label">Supplier / Provider</label><input className="input" value={form.supplier || ""} onChange={(e) => set("supplier", e.target.value)} /></div>
+          <div className="sm:col-span-2"><label className="label">Supplier Reference</label><input className="input" value={form.supplier_reference || ""} onChange={(e) => set("supplier_reference", e.target.value)} /></div>
+        </div>
+      </div>
+
+      <div className={sectionClass}>
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Destination</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div><label className="label">Destination *</label><select className="input" value={form.destination_id} onChange={(e) => set("destination_id", e.target.value)}><option value="">Select destination</option>{(destinations.data || []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+          <div><label className="label">Country</label><input className="input" value={form.destination_country || ""} onChange={(e) => set("destination_country", e.target.value)} /></div>
+          <div><label className="label">City / Location</label><input className="input" value={form.city_location || ""} onChange={(e) => set("city_location", e.target.value)} /></div>
+          <div><label className="label">Departure Location</label><input className="input" value={form.departure_location || ""} onChange={(e) => set("departure_location", e.target.value)} /></div>
+          <div className="sm:col-span-2"><label className="label">Arrival Location</label><input className="input" value={form.arrival_location || ""} onChange={(e) => set("arrival_location", e.target.value)} /></div>
+        </div>
+      </div>
+
+      <div className={sectionClass}>
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Availability</h3>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div><label className="label">Total Units *</label><input className="input" type="number" min="0" required value={form.quantity} onChange={(e) => set("quantity", e.target.value)} /></div>
+          <div><label className="label">Available Units</label><input className="input" type="number" min="0" value={form.available_quantity} onChange={(e) => set("available_quantity", e.target.value)} /><p className="mt-1 text-[10px] text-slate-400">Leave blank to calculate automatically.</p></div>
+          <div><label className="label">Reserved Units</label><input className="input" type="number" min="0" value={form.reserved_quantity} onChange={(e) => set("reserved_quantity", e.target.value)} /></div>
+          <div><label className="label">Low Availability Alert</label><input className="input" type="number" min="0" value={form.low_stock_threshold} onChange={(e) => set("low_stock_threshold", e.target.value)} /></div>
+          <div><label className="label">Availability Status</label><select className="input" value={form.status} onChange={(e) => set("status", e.target.value)}><option value="available">Available</option><option value="reserved">Reserved</option><option value="low_availability">Low availability</option><option value="out_of_stock">Out of stock</option><option value="inactive">Inactive</option></select></div>
+        </div>
+      </div>
+
+      <div className={sectionClass}>
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Pricing</h3>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div><label className="label">Supplier Cost</label><input className="input" type="number" min="0" step="0.01" value={form.unit_cost} onChange={(e) => set("unit_cost", e.target.value)} /></div>
+          <div><label className="label">Selling Price</label><input className="input" type="number" min="0" step="0.01" value={form.selling_price} onChange={(e) => set("selling_price", e.target.value)} /></div>
+          <div><label className="label">Currency</label><select className="input" value={form.currency} onChange={(e) => set("currency", e.target.value)}><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="AED">AED</option><option value="SAR">SAR</option></select></div>
+          <div><label className="label">Price Type</label><select className="input" value={form.price_type} onChange={(e) => set("price_type", e.target.value)}><option value="fixed">Fixed</option><option value="per_person">Per person</option><option value="per_group">Per group</option></select></div>
+          <div><label className="label">Markup / Profit</label><input className="input" type="number" min="0" step="0.01" value={form.markup_profit} onChange={(e) => set("markup_profit", e.target.value)} /></div>
+        </div>
+      </div>
+
+      <div className={sectionClass}>
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Travel Dates</h3>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div><label className="label">Valid From</label><input className="input" type="date" value={form.valid_from || ""} onChange={(e) => set("valid_from", e.target.value)} /></div>
+          <div><label className="label">Valid Until</label><input className="input" type="date" value={form.valid_until || ""} onChange={(e) => set("valid_until", e.target.value)} /></div>
+          <div><label className="label">Departure Date & Time</label><input className="input" type="datetime-local" value={form.departure_date_time || ""} onChange={(e) => set("departure_date_time", e.target.value)} /></div>
+          <div><label className="label">Return Date & Time</label><input className="input" type="datetime-local" value={form.return_date_time || ""} onChange={(e) => set("return_date_time", e.target.value)} /></div>
+        </div>
+      </div>
+
+      <div className={sectionClass}>
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Additional Information</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2"><label className="label">Description</label><textarea className="input min-h-[70px]" value={form.description || ""} onChange={(e) => set("description", e.target.value)} /></div>
+          <div><label className="label">Inclusions</label><textarea className="input min-h-[80px]" value={form.inclusions || ""} onChange={(e) => set("inclusions", e.target.value)} /></div>
+          <div><label className="label">Exclusions</label><textarea className="input min-h-[80px]" value={form.exclusions || ""} onChange={(e) => set("exclusions", e.target.value)} /></div>
+          <div className="sm:col-span-2"><label className="label">Terms &amp; Conditions</label><textarea className="input min-h-[80px]" value={form.terms_conditions || ""} onChange={(e) => set("terms_conditions", e.target.value)} /></div>
+          <div className="sm:col-span-2"><label className="label">Notes</label><textarea className="input min-h-[80px]" value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} /></div>
+        </div>
+      </div>
+
+      <div className="flex justify-end"><button className="btn-primary" disabled={submitting}>{submitting ? "Saving..." : "Save Inventory"}</button></div>
+    </form>
+  );
 }
 
 export function PackageForm({ initial, onSubmit, submitting }) {

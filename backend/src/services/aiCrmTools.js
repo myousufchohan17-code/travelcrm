@@ -541,18 +541,81 @@ async function getTravelSummary() {
 async function getInventory(args = {}) {
   const category = String(args.category || "").trim();
   const destination = String(args.destination || "").trim();
+  const supplier = String(args.supplier || "").trim();
   const mode = String(args.mode || "all").toLowerCase();
   const clauses = ["1=1"];
   const params = [];
   if (category) { clauses.push("LOWER(i.category) = ?"); params.push(category.toLowerCase()); }
-  if (destination) { clauses.push("LOWER(COALESCE(d.name, '')) LIKE ?"); params.push(like(destination)); }
+  if (destination) {
+    clauses.push("(LOWER(COALESCE(d.name, '')) LIKE ? OR LOWER(COALESCE(i.destination_country, '')) LIKE ? OR LOWER(COALESCE(i.city_location, '')) LIKE ? OR LOWER(COALESCE(i.location, '')) LIKE ?)");
+    params.push(like(destination), like(destination), like(destination), like(destination));
+  }
+  if (supplier) { clauses.push("LOWER(COALESCE(i.supplier, '')) LIKE ?"); params.push(like(supplier)); }
   if (mode === "available") clauses.push("i.available_quantity > 0");
   if (mode === "low") clauses.push("i.available_quantity > 0 AND i.available_quantity <= i.low_stock_threshold");
   if (mode === "out") clauses.push("i.available_quantity = 0");
   if (mode === "reserved") clauses.push("i.reserved_quantity > 0");
-  const rows = await query(`SELECT i.name, i.category, i.available_quantity, i.reserved_quantity, i.quantity, i.status, i.supplier, d.name AS destination FROM inventory i LEFT JOIN destinations d ON d.id=i.destination_id WHERE ${clauses.join(" AND ")} ORDER BY i.available_quantity ASC, i.name ASC LIMIT 20`, params);
-  const [summary] = await query("SELECT COUNT(*) AS total_items, COALESCE(SUM(available_quantity),0) AS available, COALESCE(SUM(reserved_quantity),0) AS reserved, COALESCE(SUM(CASE WHEN status = 'low_availability' THEN 1 ELSE 0 END),0) AS low_items, COALESCE(SUM(CASE WHEN status = 'out_of_stock' THEN 1 ELSE 0 END),0) AS out_items FROM inventory");
-  return { total_items: num(summary?.total_items), available: num(summary?.available), reserved: num(summary?.reserved), low_items: num(summary?.low_items), out_items: num(summary?.out_items), results: rows.map((row) => ({ ...row, available_quantity: num(row.available_quantity), reserved_quantity: num(row.reserved_quantity), quantity: num(row.quantity) })) };
+  if (mode === "inactive") clauses.push("i.status = 'inactive'");
+  const rows = await query(
+    `SELECT
+       i.id, i.name, i.category, i.description, i.supplier, i.supplier_reference,
+       i.destination_country, i.city_location, i.departure_location, i.arrival_location,
+       i.location, i.quantity, i.available_quantity, i.reserved_quantity, i.low_stock_threshold,
+       i.unit_cost, i.selling_price, i.currency, i.price_type, i.markup_profit,
+       i.start_date, i.end_date, i.valid_from, i.valid_until,
+       i.departure_date_time, i.return_date_time, i.availability_status, i.status,
+       i.inclusions, i.exclusions, i.terms_conditions, i.notes,
+       d.name AS destination
+     FROM inventory i
+     LEFT JOIN destinations d ON d.id = i.destination_id
+     WHERE ${clauses.join(" AND ")}
+     ORDER BY i.available_quantity ASC, i.name ASC
+     LIMIT 20`,
+    params
+  );
+  const [matching] = await query(
+    `SELECT
+       COUNT(*) AS matching_items,
+       COALESCE(SUM(quantity), 0) AS matching_quantity,
+       COALESCE(SUM(available_quantity), 0) AS matching_available,
+       COALESCE(SUM(reserved_quantity), 0) AS matching_reserved
+     FROM inventory i
+     LEFT JOIN destinations d ON d.id = i.destination_id
+     WHERE ${clauses.join(" AND ")}`,
+    params
+  );
+  const [summary] = await query(
+    `SELECT
+       COUNT(*) AS total_items,
+       COALESCE(SUM(quantity), 0) AS total_quantity,
+       COALESCE(SUM(available_quantity), 0) AS available,
+       COALESCE(SUM(reserved_quantity), 0) AS reserved,
+       COALESCE(SUM(CASE WHEN available_quantity > 0 AND available_quantity <= low_stock_threshold THEN 1 ELSE 0 END), 0) AS low_items,
+       COALESCE(SUM(CASE WHEN available_quantity <= 0 THEN 1 ELSE 0 END), 0) AS out_items
+     FROM inventory`
+  );
+  return {
+    total_items: num(summary?.total_items),
+    total_quantity: num(summary?.total_quantity),
+    available: num(summary?.available),
+    reserved: num(summary?.reserved),
+    low_items: num(summary?.low_items),
+    out_items: num(summary?.out_items),
+    matching_items: num(matching?.matching_items),
+    matching_quantity: num(matching?.matching_quantity),
+    matching_available: num(matching?.matching_available),
+    matching_reserved: num(matching?.matching_reserved),
+    results: rows.map((row) => ({
+      ...row,
+      quantity: num(row.quantity),
+      available_quantity: num(row.available_quantity),
+      reserved_quantity: num(row.reserved_quantity),
+      low_stock_threshold: num(row.low_stock_threshold),
+      unit_cost: num(row.unit_cost),
+      selling_price: num(row.selling_price),
+      markup_profit: num(row.markup_profit),
+    })),
+  };
 }
 
 const handlers = {
@@ -574,7 +637,8 @@ async function runTool(name, rawArgs = {}) {
   try {
     return await fn(rawArgs || {});
   } catch (err) {
-    console.error("AI CRM tool failed:", name);
+    if (name === "getInventory") console.error("AI Inventory query failed:", err);
+    else console.error("AI CRM tool failed:", name, err);
     return { error: "crm_unavailable" };
   }
 }

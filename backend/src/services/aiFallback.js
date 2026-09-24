@@ -181,15 +181,38 @@ async function fallbackAnswer(message) {
       .join("\n");
   }
 
-  if (looksLike(q, ["inventory", "stock", "availability", "available hotel", "available room", "vehicles", "vehicle", "seats", "restock", "out of stock", "low stock", "running low", "reserved inventory"])) {
-    const category = looksLike(q, ["hotel"]) ? "Hotels" : looksLike(q, ["room"]) ? "Rooms" : looksLike(q, ["vehicle"]) ? "Vehicles" : looksLike(q, ["seat", "flight"]) ? "Flights / Seats" : "";
-    const mode = looksLike(q, ["low", "running low", "restock", "almost finished"]) ? "low" : looksLike(q, ["out of stock", "out of", "zero"]) ? "out" : looksLike(q, ["reserved"]) ? "reserved" : looksLike(q, ["available", "availability"]) ? "available" : "all";
+  if (looksLike(q, ["inventory", "stock", "availability", "available hotel", "available room", "hotel room", "hotel rooms", "room", "vehicles", "vehicle", "seats", "flight", "restock", "out of stock", "low stock", "running low", "reserved inventory", "fully booked", "supplier has inventory", "inventory supplier", "inactive inventory", "how many package"])) {
+    const category = looksLike(q, ["room"]) ? "Rooms" : looksLike(q, ["hotel"]) ? "Hotels" : looksLike(q, ["vehicle"]) ? "Vehicles" : looksLike(q, ["seat", "flight"]) ? "Flights / Seats" : looksLike(q, ["package"]) ? "Travel Packages" : "";
+    const asksForOverview = looksLike(q, ["inventory status", "current inventory", "availability status", "overall inventory", "status of inventory", "inventory summary", "available inventory", "inventory overview"]);
+    const lowMention = looksLike(q, ["low", "running low", "restock", "almost finished"]);
+    const outMention = looksLike(q, ["out of stock", "out of", "zero", "fully booked"]);
+    const reservedMention = looksLike(q, ["reserved"]);
+    const inactiveMention = looksLike(q, ["inactive"]);
+    const availableMention = looksLike(q, ["available", "availability"]);
+    const mode = inactiveMention
+      ? "inactive"
+      : asksForOverview || (availableMention && !lowMention && !outMention)
+      ? "all"
+      : lowMention && !outMention
+        ? "low"
+        : outMention && !lowMention
+          ? "out"
+          : reservedMention
+            ? "reserved"
+            : availableMention
+              ? "available"
+              : "all";
     const destination = (text.match(/\b(?:in|for)\s+([A-Za-z][A-Za-z .'-]{1,50})[?.!]?$/i) || [])[1] || "";
-    const data = await runTool("getInventory", { category, mode, destination });
+    const supplier = (text.match(/\b(?:supplier|provider)\s+(?:named|called)\s+([A-Za-z][A-Za-z .'-]{1,50})[?.!]?$/i) || [])[1] || "";
+    const data = await runTool("getInventory", { category, mode, destination, supplier });
     if (data?.error) return CRM_UNAVAILABLE_TEXT;
-    if (!data.results?.length && (category || mode !== "all" || destination)) return none();
+    if (!data.results?.length) {
+      return category || mode !== "all" || destination
+        ? "There are no matching inventory records available."
+        : "There are currently no inventory records available.";
+    }
     const heading = mode === "low" ? "**Low Inventory**" : mode === "out" ? "**Out of Stock Inventory**" : "**Inventory Summary**";
-    const summary = [`* Total Items: ${data.total_items}`, `* Available: ${data.available}`, `* Reserved: ${data.reserved}`, `* Low Availability: ${data.low_items}`, `* Out of Stock: ${data.out_items}`].join("\n");
+    const summary = [`* Matching Items: ${data.matching_items}`, `* Matching Available: ${data.matching_available}`, `* Matching Reserved: ${data.matching_reserved}`, `* Total Inventory Items: ${data.total_items}`, `* Total Available: ${data.available}`, `* Low Availability: ${data.low_items}`, `* Out of Stock: ${data.out_items}`].join("\n");
     const list = data.results?.length ? `\n\n${table(["Item", "Category", "Destination", "Available", "Reserved", "Status"], data.results.map((row) => [row.name, row.category, row.destination, row.available_quantity, row.reserved_quantity, row.status.replaceAll("_", " ")]))}` : "";
     return `${heading}\n${summary}${list}`;
   }

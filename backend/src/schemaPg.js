@@ -45,6 +45,44 @@ CREATE TABLE IF NOT EXISTS clients (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS inventory (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  category VARCHAR(40) NOT NULL DEFAULT 'Other',
+  description TEXT NULL,
+  supplier VARCHAR(150) NULL,
+  supplier_reference VARCHAR(150) NULL,
+  destination_id INT NULL REFERENCES destinations(id) ON DELETE SET NULL,
+  destination_country VARCHAR(100) NULL,
+  city_location VARCHAR(150) NULL,
+  departure_location VARCHAR(150) NULL,
+  arrival_location VARCHAR(150) NULL,
+  quantity INT NOT NULL DEFAULT 0,
+  available_quantity INT NOT NULL DEFAULT 0,
+  reserved_quantity INT NOT NULL DEFAULT 0,
+  low_stock_threshold INT NOT NULL DEFAULT 5,
+  unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  selling_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  currency VARCHAR(10) DEFAULT 'USD',
+  price_type VARCHAR(30) DEFAULT 'fixed',
+  markup_profit DECIMAL(12,2) DEFAULT 0,
+  location VARCHAR(150) NULL,
+  start_date DATE NULL,
+  end_date DATE NULL,
+  valid_from DATE NULL,
+  valid_until DATE NULL,
+  departure_date_time TIMESTAMP NULL,
+  return_date_time TIMESTAMP NULL,
+  availability_status VARCHAR(30) NOT NULL DEFAULT 'available',
+  status VARCHAR(30) NOT NULL DEFAULT 'available',
+  inclusions TEXT NULL,
+  exclusions TEXT NULL,
+  terms_conditions TEXT NULL,
+  notes TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS travel_packages (
   id SERIAL PRIMARY KEY,
   name VARCHAR(200) NOT NULL,
@@ -166,6 +204,9 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_inventory_category ON inventory (category);
+CREATE INDEX IF NOT EXISTS idx_inventory_status ON inventory (status);
+CREATE INDEX IF NOT EXISTS idx_inventory_name ON inventory (name);
 CREATE INDEX IF NOT EXISTS idx_destinations_name ON destinations (name);
 CREATE INDEX IF NOT EXISTS idx_clients_name ON clients (full_name);
 CREATE INDEX IF NOT EXISTS idx_clients_email ON clients (email);
