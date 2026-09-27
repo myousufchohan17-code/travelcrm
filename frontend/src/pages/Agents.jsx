@@ -65,7 +65,6 @@ export default function Agents() {
                         message: `${a.full_name} will be deleted. Assigned bookings and leads will become unassigned.`,
                         onConfirm: async () => {
                           await api.delete(`/agents/${a.id}`);
-                          invalidateAll();
                         },
                       })
                     }
@@ -97,7 +96,7 @@ export default function Agents() {
           onClose={() => setModal(null)}
           onSaved={() => {
             setModal(null);
-            invalidateAll();
+            invalidateAll([["agents"], ["bookings"], ["leads"], ["follow-ups"], ["reports"], ["dashboard-stats"]]);
             toast("Agent saved");
           }}
         />

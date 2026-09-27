@@ -139,6 +139,11 @@ CREATE TABLE IF NOT EXISTS bookings (
 
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS inventory_id INT NULL REFERENCES inventory(id) ON DELETE SET NULL;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS inventory_quantity INT NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_bookings_inventory_id ON bookings (inventory_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_client_created ON bookings (client_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_bookings_package_status ON bookings (package_id, status);
+CREATE INDEX IF NOT EXISTS idx_bookings_destination_status ON bookings (destination_id, status);
+CREATE INDEX IF NOT EXISTS idx_bookings_agent_status ON bookings (assigned_agent_id, status);
 
 CREATE TABLE IF NOT EXISTS booking_travelers (
   id SERIAL PRIMARY KEY,
@@ -146,6 +151,45 @@ CREATE TABLE IF NOT EXISTS booking_travelers (
   full_name VARCHAR(150) NOT NULL,
   passport_no VARCHAR(80) NULL,
   age INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id SERIAL PRIMARY KEY,
+  invoice_number VARCHAR(40) NOT NULL UNIQUE,
+  client_id INT NULL REFERENCES clients(id) ON DELETE SET NULL,
+  booking_id INT NULL REFERENCES bookings(id) ON DELETE SET NULL,
+  client_name VARCHAR(150) NOT NULL,
+  client_email VARCHAR(190) NULL,
+  client_phone VARCHAR(50) NULL,
+  client_address TEXT NULL,
+  booking_label VARCHAR(200) NULL,
+  issue_date DATE NOT NULL,
+  due_date DATE NOT NULL,
+  destination VARCHAR(180) NULL,
+  travel_start_date DATE NULL,
+  travel_end_date DATE NULL,
+  items JSONB NOT NULL,
+  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+  discount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  tax DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  amount_paid DECIMAL(12,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  payment_method VARCHAR(80) NULL,
+  payment_date DATE NULL,
+  notes TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS invoice_payments (
+  id SERIAL PRIMARY KEY,
+  invoice_id INT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+  amount DECIMAL(12,2) NOT NULL,
+  payment_date DATE NOT NULL,
+  payment_method VARCHAR(80) NULL,
+  reference VARCHAR(190) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -217,16 +261,29 @@ CREATE INDEX IF NOT EXISTS idx_destinations_name ON destinations (name);
 CREATE INDEX IF NOT EXISTS idx_clients_name ON clients (full_name);
 CREATE INDEX IF NOT EXISTS idx_clients_email ON clients (email);
 CREATE INDEX IF NOT EXISTS idx_clients_phone ON clients (phone);
+CREATE INDEX IF NOT EXISTS idx_clients_created ON clients (created_at);
+CREATE INDEX IF NOT EXISTS idx_inventory_destination ON inventory (destination_id);
 CREATE INDEX IF NOT EXISTS idx_packages_status ON travel_packages (status);
 CREATE INDEX IF NOT EXISTS idx_packages_category ON travel_packages (category);
 CREATE INDEX IF NOT EXISTS idx_packages_name ON travel_packages (name);
+CREATE INDEX IF NOT EXISTS idx_packages_status_created ON travel_packages (status, created_at);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads (status);
 CREATE INDEX IF NOT EXISTS idx_leads_name ON leads (name);
+CREATE INDEX IF NOT EXISTS idx_leads_status_created ON leads (status, created_at);
 CREATE INDEX IF NOT EXISTS idx_bookings_departure ON bookings (departure_date);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings (status);
 CREATE INDEX IF NOT EXISTS idx_bookings_created ON bookings (created_at);
+CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices (client_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_booking ON invoices (booking_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices (status);
+CREATE INDEX IF NOT EXISTS idx_invoices_issue_date ON invoices (issue_date);
+CREATE INDEX IF NOT EXISTS idx_invoice_payments_invoice ON invoice_payments (invoice_id);
 CREATE INDEX IF NOT EXISTS idx_followups_date ON follow_ups (follow_up_date);
 CREATE INDEX IF NOT EXISTS idx_followups_status ON follow_ups (status);
+CREATE INDEX IF NOT EXISTS idx_followups_status_date ON follow_ups (status, follow_up_date, follow_up_time);
+CREATE INDEX IF NOT EXISTS idx_conversations_client_last ON conversations (client_id, last_message_at);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON messages (conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created ON notifications (user_id, is_read, created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages (is_read);
 CREATE INDEX IF NOT EXISTS idx_messages_created ON messages (created_at);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications (is_read);

@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Eye, Pencil, Plus, Power, Trash2 } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import api, { money } from "../api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import api, { errorMessage, money } from "../api/client";
 import { useDebounce } from "../hooks/useDebounce";
 import { useUi } from "../context/UiContext";
 import { EmptyState, Loader, Pagination, StatusBadge } from "../components/ui/Common";
 
 export default function Packages() {
-  const { openModal, askConfirm, invalidateAll } = useUi();
+  const { openModal, askConfirm, invalidateAll, toast } = useUi();
+  const queryClient = useQueryClient();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const debounced = useDebounce(q);
@@ -17,7 +18,20 @@ export default function Packages() {
   });
   const toggle = useMutation({
     mutationFn: (pkg) => api.patch(`/packages/${pkg.id}/status`, { status: pkg.status === "active" ? "inactive" : "active" }),
-    onSuccess: () => invalidateAll(),
+    onMutate: async (pkg) => {
+      await queryClient.cancelQueries({ queryKey: ["packages"] });
+      const previous = queryClient.getQueriesData({ queryKey: ["packages"] });
+      previous.forEach(([key, data]) => { if (data?.data) queryClient.setQueryData(key, {
+        ...data,
+        data: data?.data?.map((item) => item.id === pkg.id ? { ...item, status: pkg.status === "active" ? "inactive" : "active" } : item),
+      }); });
+      return { previous };
+    },
+    onSuccess: () => invalidateAll([["packages"], ["package-categories"]]),
+    onError: (err, _variables, context) => {
+      context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast(errorMessage(err), "error");
+    },
   });
 
   return (
@@ -55,7 +69,7 @@ export default function Packages() {
                   <div className="mt-3 flex gap-1">
                     <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={() => openModal("view-package", p)}><Eye className="h-4 w-4" /></button>
                     <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={() => openModal("package", p)}><Pencil className="h-4 w-4" /></button>
-                    <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={() => toggle.mutate(p)}><Power className="h-4 w-4" /></button>
+                    <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-50" disabled={toggle.isPending} onClick={() => toggle.mutate(p)}><Power className="h-4 w-4" /></button>
                     <button
                       className="rounded-lg p-1.5 text-red-500 hover:bg-red-50"
                       onClick={() =>

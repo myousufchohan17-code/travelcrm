@@ -90,6 +90,16 @@ async function initDatabase() {
       for (const statement of splitSql(schemaPg)) {
         await runPg(statement);
       }
+      const inventoryForeignKey = await runPg(
+        `SELECT 1 FROM information_schema.table_constraints tc
+         JOIN information_schema.key_column_usage kcu
+           ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+         WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = 'bookings'
+           AND kcu.column_name = 'inventory_id' LIMIT 1`
+      );
+      if (!inventoryForeignKey.length) {
+        await runPg("ALTER TABLE bookings ADD CONSTRAINT fk_bookings_inventory FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE SET NULL");
+      }
       return;
     }
 
@@ -126,19 +136,81 @@ async function initDatabase() {
       .filter((line) => !/^\s*CREATE DATABASE/i.test(line) && !/^\s*USE /i.test(line))
       .join("\n");
     await pool.query(schema);
-    await pool.query("ALTER TABLE agents ADD COLUMN image MEDIUMTEXT NULL").catch(() => {});
-    await pool.query("ALTER TABLE bookings ADD COLUMN inventory_id INT NULL").catch(() => {});
-    await pool.query("ALTER TABLE bookings ADD COLUMN inventory_quantity INT NOT NULL DEFAULT 0").catch(() => {});
-    await pool.query("ALTER TABLE destinations MODIFY image MEDIUMTEXT NULL").catch(() => {});
-    await pool.query("ALTER TABLE travel_packages MODIFY image MEDIUMTEXT NULL").catch(() => {});
-    await pool.query("ALTER TABLE users MODIFY avatar MEDIUMTEXT NULL").catch(() => {});
-    await pool.query("ALTER TABLE settings MODIFY logo MEDIUMTEXT NULL").catch(() => {});
+    const largeTextColumns = [
+      ["agents", "image"],
+      ["destinations", "image"],
+      ["travel_packages", "image"],
+      ["users", "avatar"],
+      ["settings", "logo"],
+    ];
+    for (const [table, column] of largeTextColumns) {
+      const [existingColumns] = await pool.execute(
+        `SELECT data_type AS data_type FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ? LIMIT 1`,
+        [table, column]
+      );
+      if (!existingColumns.length) {
+        await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` MEDIUMTEXT NULL`);
+      } else if (existingColumns[0].data_type.toLowerCase() !== "mediumtext") {
+        await pool.query(`ALTER TABLE \`${table}\` MODIFY COLUMN \`${column}\` MEDIUMTEXT NULL`);
+      }
+    }
+    const bookingColumns = await pool.execute(
+      `SELECT column_name AS column_name FROM information_schema.columns
+       WHERE table_schema = DATABASE() AND table_name = 'bookings' AND column_name IN (?, ?)`,
+      ["inventory_id", "inventory_quantity"]
+    ).then(([rows]) => rows.map((row) => row.column_name));
+    if (!bookingColumns.includes("inventory_id")) {
+      await pool.query("ALTER TABLE bookings ADD COLUMN inventory_id INT NULL");
+    }
+    if (!bookingColumns.includes("inventory_quantity")) {
+      await pool.query("ALTER TABLE bookings ADD COLUMN inventory_quantity INT NOT NULL DEFAULT 0");
+    }
+    const [inventoryIndex] = await pool.execute(
+      `SELECT index_name AS index_name FROM information_schema.statistics
+       WHERE table_schema = DATABASE() AND table_name = 'bookings' AND column_name = 'inventory_id' LIMIT 1`
+    );
+    if (!inventoryIndex.length) {
+      await pool.query("CREATE INDEX idx_bookings_inventory_id ON bookings (inventory_id)");
+    }
+    const [inventoryForeignKey] = await pool.execute(
+      `SELECT constraint_name AS constraint_name FROM information_schema.key_column_usage
+       WHERE table_schema = DATABASE() AND table_name = 'bookings' AND column_name = 'inventory_id'
+         AND referenced_table_name = 'inventory' LIMIT 1`
+    );
+    if (!inventoryForeignKey.length) {
+      await pool.query("ALTER TABLE bookings ADD CONSTRAINT fk_bookings_inventory FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE SET NULL");
+    }
+    const indexes = [
+      ["clients", "idx_clients_created", "created_at"],
+      ["inventory", "idx_inventory_destination", "destination_id"],
+      ["travel_packages", "idx_packages_status_created", "status, created_at"],
+      ["leads", "idx_leads_status_created", "status, created_at"],
+      ["bookings", "idx_bookings_client_created", "client_id, created_at"],
+      ["bookings", "idx_bookings_package_status", "package_id, status"],
+      ["bookings", "idx_bookings_destination_status", "destination_id, status"],
+      ["bookings", "idx_bookings_agent_status", "assigned_agent_id, status"],
+      ["follow_ups", "idx_followups_status_date", "status, follow_up_date, follow_up_time"],
+      ["conversations", "idx_conversations_client_last", "client_id, last_message_at"],
+      ["messages", "idx_messages_conversation_created", "conversation_id, created_at"],
+      ["notifications", "idx_notifications_user_unread_created", "user_id, is_read, created_at"],
+    ];
+    for (const [table, name, columns] of indexes) {
+      const [existingIndexes] = await pool.execute(
+        `SELECT index_name AS index_name FROM information_schema.statistics
+         WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ? LIMIT 1`,
+        [table, name]
+      );
+      if (!existingIndexes.length) {
+        await pool.query(`CREATE INDEX \`${name}\` ON \`${table}\` (${columns})`);
+      }
+    }
     await pool.query(`
       INSERT INTO users (full_name, email, password_hash, role)
       SELECT 'Travel Manager', 'admin@miaholidays.test', '', 'admin'
       FROM DUAL
       WHERE NOT EXISTS (SELECT 1 FROM users LIMIT 1)
-    `).catch(() => {});
+    `);
   })();
   return ready;
 }
@@ -163,7 +235,10 @@ async function query(sql, params = []) {
     }
     return rows;
   }
-  const [rows] = await getPool().execute(sql, values);
+  const returning = /\s+RETURNING\s+[a-z_, ]+\s*$/i.test(sql);
+  const mysqlSql = returning ? sql.replace(/\s+RETURNING\s+[a-z_, ]+\s*$/i, "") : sql;
+  const [rows] = await getPool().execute(mysqlSql, values);
+  if (returning) return { affectedRows: rows.affectedRows, insertId: rows.insertId };
   return rows;
 }
 

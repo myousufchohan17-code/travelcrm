@@ -3,53 +3,23 @@ const { pctChange } = require("../utils/helpers");
 
 async function stats(_req, res, next) {
   try {
-    const [clients] = await query("SELECT COUNT(*) AS count FROM clients");
-    const [bookings] = await query("SELECT COUNT(*) AS count FROM bookings");
-    const [packages] = await query(
-      "SELECT COUNT(*) AS count FROM travel_packages WHERE status = 'active'"
-    );
-    const [revenue] = await query(
-      `SELECT COALESCE(SUM(total_amount), 0) AS total
-       FROM bookings
-       WHERE status IN ('confirmed', 'completed')`
-    );
-
-    const [clientsPrev] = await query(
-      `SELECT COUNT(*) AS count FROM clients
-       WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
-    const [clientsNow] = await query(
-      `SELECT COUNT(*) AS count FROM clients
-       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
-    const [bookingsPrev] = await query(
-      `SELECT COUNT(*) AS count FROM bookings
-       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)
-         AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
-    const [bookingsNow] = await query(
-      `SELECT COUNT(*) AS count FROM bookings
-       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
-    const [revPrev] = await query(
-      `SELECT COALESCE(SUM(total_amount), 0) AS total FROM bookings
-       WHERE status IN ('confirmed', 'completed')
-         AND created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)
-         AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
-    const [revNow] = await query(
-      `SELECT COALESCE(SUM(total_amount), 0) AS total FROM bookings
-       WHERE status IN ('confirmed', 'completed')
-         AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
-    const [pkgPrev] = await query(
-      `SELECT COUNT(*) AS count FROM travel_packages
-       WHERE status = 'active' AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
-    const [pkgNow] = await query(
-      `SELECT COUNT(*) AS count FROM travel_packages
-       WHERE status = 'active' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
+    const [
+      [clients], [bookings], [packages], [revenue], [clientsPrev], [clientsNow],
+      [bookingsPrev], [bookingsNow], [revPrev], [revNow], [pkgPrev], [pkgNow],
+    ] = await Promise.all([
+      query("SELECT COUNT(*) AS count FROM clients"),
+      query("SELECT COUNT(*) AS count FROM bookings"),
+      query("SELECT COUNT(*) AS count FROM travel_packages WHERE status = 'active'"),
+      query(`SELECT COALESCE(SUM(total_amount), 0) AS total FROM bookings WHERE status IN ('confirmed', 'completed')`),
+      query(`SELECT COUNT(*) AS count FROM clients WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+      query(`SELECT COUNT(*) AS count FROM clients WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+      query(`SELECT COUNT(*) AS count FROM bookings WHERE created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+      query(`SELECT COUNT(*) AS count FROM bookings WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+      query(`SELECT COALESCE(SUM(total_amount), 0) AS total FROM bookings WHERE status IN ('confirmed', 'completed') AND created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+      query(`SELECT COALESCE(SUM(total_amount), 0) AS total FROM bookings WHERE status IN ('confirmed', 'completed') AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+      query(`SELECT COUNT(*) AS count FROM travel_packages WHERE status = 'active' AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+      query(`SELECT COUNT(*) AS count FROM travel_packages WHERE status = 'active' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`),
+    ]);
 
     const prevClients = Number(clientsPrev.count);
     const prevBookings = Number(bookingsPrev.count);
@@ -116,7 +86,7 @@ async function packageCategories(_req, res, next) {
       `SELECT category, COUNT(*) AS count
        FROM travel_packages
        GROUP BY category
-       HAVING count > 0
+      HAVING COUNT(*) > 0
        ORDER BY count DESC`
     );
     const total = rows.reduce((sum, r) => sum + Number(r.count), 0);
@@ -182,7 +152,7 @@ async function upcomingBookings(_req, res, next) {
 
 async function topDestinations(_req, res, next) {
   try {
-    const current = await query(
+    const [current, previous] = await Promise.all([query(
       `SELECT d.id, d.name, d.country, d.image, COUNT(b.id) AS bookings
        FROM destinations d
        INNER JOIN bookings b ON b.destination_id = d.id
@@ -190,15 +160,14 @@ async function topDestinations(_req, res, next) {
        GROUP BY d.id, d.name, d.country, d.image
        ORDER BY bookings DESC
        LIMIT 5`
-    );
-    const previous = await query(
+     ), query(
       `SELECT destination_id, COUNT(*) AS bookings
        FROM bookings
        WHERE status <> 'cancelled'
          AND created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)
          AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
        GROUP BY destination_id`
-    );
+     )]);
     const prevMap = Object.fromEntries(previous.map((r) => [r.destination_id, Number(r.bookings)]));
     res.json(
       current.map((row) => ({

@@ -1,12 +1,27 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import api, { errorMessage, formatDate, money } from "../../api/client";
 import { useUi } from "../../context/UiContext";
 import { ConfirmModal, Modal, StatusBadge } from "../ui/Common";
 import { BookingForm, ClientForm, FollowUpForm, InventoryForm, LeadForm, PackageForm } from "../forms/Forms";
+import { InvoiceForm, InvoicePaymentForm } from "../forms/InvoiceForm";
+
+const saveQueryKeys = {
+  client: [["clients"], ["client"], ["recent-clients"], ["dashboard-stats"], ["reports"]],
+  booking: [["bookings"], ["booking"], ["dashboard-stats"], ["bookings-overview"], ["upcoming-bookings"], ["reports"], ["inventory"], ["inventory-summary"]],
+  package: [["packages"], ["package-categories"], ["bookings"], ["booking"], ["reports"]],
+  inventory: [["inventory"], ["inventory-summary"], ["bookings"], ["booking"]],
+  lead: [["leads"], ["dashboard-stats"], ["reports"]],
+  followup: [["follow-ups"]],
+  invoice: [["invoices"], ["invoice"], ["invoices-summary"], ["bookings"], ["booking"], ["clients"], ["client"]],
+  "invoice-payment": [["invoices"], ["invoice"], ["invoices-summary"], ["bookings"], ["booking"]],
+  message: [["conversations"], ["thread"], ["messages-unread"]],
+};
 
 export default function GlobalModals() {
-  const { modal, closeModal, toast, invalidateAll, confirm, setConfirm } = useUi();
+  const navigate = useNavigate();
+  const { modal, openModal, closeModal, toast, invalidateAll, confirm, setConfirm } = useUi();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -14,7 +29,7 @@ export default function GlobalModals() {
     setSaving(true);
     try {
       await fn();
-      invalidateAll();
+      invalidateAll(saveQueryKeys[modal?.type] || []);
       toast("Saved successfully");
       closeModal();
     } catch (err) {
@@ -29,7 +44,7 @@ export default function GlobalModals() {
     setDeleting(true);
     try {
       await confirm.onConfirm();
-      invalidateAll();
+      invalidateAll(confirm.queryKeys);
       toast("Deleted successfully");
       setConfirm(null);
     } catch (err) {
@@ -60,6 +75,27 @@ export default function GlobalModals() {
             onSubmit={(body) =>
               save(() => (modal.payload ? api.put(`/bookings/${modal.payload.id}`, body) : api.post("/bookings", body)))
             }
+          />
+        </Modal>
+      )}
+      {modal?.type === "invoice" && (
+        <Modal title={modal.payload?.invoice || modal.payload?.invoice_number ? "Edit Invoice" : "Create Invoice"} onClose={closeModal} wide>
+          <InvoiceForm
+            initial={modal.payload}
+            submitting={saving}
+            onSubmit={(body) => save(() => {
+              const invoice = modal.payload?.invoice || (modal.payload?.invoice_number ? modal.payload : null);
+              return invoice ? api.put(`/invoices/${invoice.id}`, body) : api.post("/invoices", body);
+            })}
+          />
+        </Modal>
+      )}
+      {modal?.type === "invoice-payment" && (
+        <Modal title={`Record payment · ${modal.payload?.invoice_number || "Invoice"}`} onClose={closeModal}>
+          <InvoicePaymentForm
+            invoice={modal.payload}
+            submitting={saving}
+            onSubmit={(body) => save(() => api.patch(`/invoices/${modal.payload.id}/payment`, { ...body, action: "record" }))}
           />
         </Modal>
       )}
@@ -105,7 +141,7 @@ export default function GlobalModals() {
           />
         </Modal>
       )}
-      {modal?.type === "view-client" && <ViewModal title="Client details" data={modal.payload} onClose={closeModal} />}
+      {modal?.type === "view-client" && <ClientView id={modal.payload?.id} onClose={closeModal} onCreateInvoice={(id) => { closeModal(); openModal("invoice", { client_id: id }); }} onInvoice={(id) => { closeModal(); navigate(`/invoices?invoice=${id}`); }} />}
       {modal?.type === "view-booking" && <BookingView id={modal.payload?.id} onClose={closeModal} />}
       {modal?.type === "view-package" && <ViewModal title="Package details" data={modal.payload} onClose={closeModal} />}
       {modal?.type === "view-inventory" && <ViewModal title="Inventory details" data={modal.payload} onClose={closeModal} />}
@@ -142,6 +178,7 @@ function ViewModal({ title, data, onClose }) {
 }
 
 function BookingView({ id, onClose }) {
+  const { openModal } = useUi();
   const q = useQuery({
     queryKey: ["booking", id],
     enabled: Boolean(id),
@@ -166,9 +203,55 @@ function BookingView({ id, onClose }) {
             <Info label="Amount" value={money(q.data.total_amount)} />
           </div>
           {q.data.notes ? <p className="text-sm text-slate-500">{q.data.notes}</p> : null}
+          <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <h4 className="text-sm font-bold text-slate-800">Invoices ({q.data.invoices?.length || 0})</h4>
+            <button className="btn-primary w-full sm:w-auto" onClick={() => openModal("invoice", { bookingId: q.data.id })}><span className="text-base leading-none">+</span> Create Invoice</button>
+          </div>
+          {q.data.invoices?.length ? (
+            <div className="divide-y divide-slate-100 rounded-xl border border-slate-100">
+              {q.data.invoices.map((invoice) => (
+                <div key={invoice.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+                  <div><p className="font-semibold text-slate-700">{invoice.invoice_number}</p><p className="text-xs text-slate-400">Due {formatDate(invoice.due_date)}</p></div>
+                  <div className="text-right"><StatusBadge value={invoice.status} /><p className="mt-1 font-semibold">{money(invoice.total)}</p></div>
+                </div>
+              ))}
+            </div>
+          ) : <p className="text-xs text-slate-400">No invoices linked to this booking yet.</p>}
         </div>
       ) : (
         <p className="text-sm text-slate-400">Booking not found</p>
+      )}
+    </Modal>
+  );
+}
+
+function ClientView({ id, onClose, onCreateInvoice, onInvoice }) {
+  const q = useQuery({
+    queryKey: ["client", id],
+    enabled: Boolean(id),
+    queryFn: async () => (await api.get(`/clients/${id}`)).data,
+  });
+  const client = q.data;
+  return (
+    <Modal title="Client details" onClose={onClose} wide>
+      {q.isLoading ? <p className="text-sm text-slate-400">Loading client...</p> : !client ? <p className="text-sm text-slate-400">Client not found</p> : (
+        <div className="space-y-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Info label="Name" value={client.full_name} />
+            <Info label="Phone" value={client.phone} />
+            <Info label="Email" value={client.email} />
+            <Info label="Address" value={client.address} />
+          </div>
+          <div className="space-y-3 border-t border-slate-100 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-bold text-slate-800">Invoice history ({client.invoices?.length || 0})</h4><button className="btn-primary !px-3 !py-2 text-xs" onClick={() => onCreateInvoice(client.id)}><span className="text-base leading-none">+</span> Create Invoice</button></div>
+            {client.invoices?.length ? client.invoices.map((invoice) => (
+              <button key={invoice.id} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 text-left hover:bg-slate-50" onClick={() => onInvoice(invoice.id)}>
+                <span><span className="block text-sm font-semibold text-brand-700">{invoice.invoice_number}</span><span className="text-xs text-slate-400">Issued {formatDate(invoice.issue_date)} · Due {formatDate(invoice.due_date)}</span></span>
+                <span className="text-right"><StatusBadge value={invoice.status} /><span className="mt-1 block text-sm font-semibold text-slate-700">{money(invoice.total)}</span></span>
+              </button>
+            )) : <p className="text-xs text-slate-400">No invoices linked to this client yet.</p>}
+          </div>
+        </div>
       )}
     </Modal>
   );
@@ -191,7 +274,7 @@ function MessageCompose({ onClose }) {
   const send = useMutation({
     mutationFn: () => api.post("/messages", { client_id: clientId, body }),
     onSuccess: () => {
-      invalidateAll();
+      invalidateAll(saveQueryKeys.message);
       toast("Message sent");
       onClose();
     },

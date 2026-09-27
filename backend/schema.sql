@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS clients (
   CONSTRAINT fk_clients_destination FOREIGN KEY (preferred_destination_id) REFERENCES destinations(id) ON DELETE SET NULL,
   INDEX idx_clients_name (full_name),
   INDEX idx_clients_email (email),
-  INDEX idx_clients_phone (phone)
+  INDEX idx_clients_phone (phone),
+  INDEX idx_clients_created (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS inventory (
@@ -95,7 +96,8 @@ CREATE TABLE IF NOT EXISTS inventory (
   CONSTRAINT fk_inventory_destination FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE SET NULL,
   INDEX idx_inventory_category (category),
   INDEX idx_inventory_status (status),
-  INDEX idx_inventory_name (name)
+  INDEX idx_inventory_name (name),
+  INDEX idx_inventory_destination (destination_id)
 );
 
 CREATE TABLE IF NOT EXISTS travel_packages (
@@ -115,7 +117,8 @@ CREATE TABLE IF NOT EXISTS travel_packages (
   CONSTRAINT fk_packages_destination FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE SET NULL,
   INDEX idx_packages_status (status),
   INDEX idx_packages_category (category),
-  INDEX idx_packages_name (name)
+  INDEX idx_packages_name (name),
+  INDEX idx_packages_status_created (status, created_at)
 );
 
 CREATE TABLE IF NOT EXISTS leads (
@@ -138,7 +141,8 @@ CREATE TABLE IF NOT EXISTS leads (
   CONSTRAINT fk_leads_agent FOREIGN KEY (assigned_agent_id) REFERENCES agents(id) ON DELETE SET NULL,
   CONSTRAINT fk_leads_client FOREIGN KEY (converted_client_id) REFERENCES clients(id) ON DELETE SET NULL,
   INDEX idx_leads_status (status),
-  INDEX idx_leads_name (name)
+  INDEX idx_leads_name (name),
+  INDEX idx_leads_status_created (status, created_at)
 );
 
 CREATE TABLE IF NOT EXISTS bookings (
@@ -165,7 +169,12 @@ CREATE TABLE IF NOT EXISTS bookings (
   CONSTRAINT fk_bookings_agent FOREIGN KEY (assigned_agent_id) REFERENCES agents(id) ON DELETE SET NULL,
   INDEX idx_bookings_departure (departure_date),
   INDEX idx_bookings_status (status),
-  INDEX idx_bookings_created (created_at)
+  INDEX idx_bookings_created (created_at),
+  INDEX idx_bookings_client_created (client_id, created_at),
+  INDEX idx_bookings_package_status (package_id, status),
+  INDEX idx_bookings_destination_status (destination_id, status),
+  INDEX idx_bookings_agent_status (assigned_agent_id, status),
+  INDEX idx_bookings_inventory_id (inventory_id)
 );
 
 CREATE TABLE IF NOT EXISTS booking_travelers (
@@ -176,6 +185,53 @@ CREATE TABLE IF NOT EXISTS booking_travelers (
   age INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_travelers_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  invoice_number VARCHAR(40) NOT NULL UNIQUE,
+  client_id INT NULL,
+  booking_id INT NULL,
+  client_name VARCHAR(150) NOT NULL,
+  client_email VARCHAR(190) NULL,
+  client_phone VARCHAR(50) NULL,
+  client_address TEXT NULL,
+  booking_label VARCHAR(200) NULL,
+  issue_date DATE NOT NULL,
+  due_date DATE NOT NULL,
+  destination VARCHAR(180) NULL,
+  travel_start_date DATE NULL,
+  travel_end_date DATE NULL,
+  items JSON NOT NULL,
+  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+  discount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  tax DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  amount_paid DECIMAL(12,2) NOT NULL DEFAULT 0,
+  status ENUM('pending','paid','overdue','cancelled') NOT NULL DEFAULT 'pending',
+  payment_method VARCHAR(80) NULL,
+  payment_date DATE NULL,
+  notes TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_invoices_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
+  CONSTRAINT fk_invoices_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+  INDEX idx_invoices_client (client_id),
+  INDEX idx_invoices_booking (booking_id),
+  INDEX idx_invoices_status (status),
+  INDEX idx_invoices_issue_date (issue_date)
+);
+
+CREATE TABLE IF NOT EXISTS invoice_payments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  invoice_id INT NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  payment_date DATE NOT NULL,
+  payment_method VARCHAR(80) NULL,
+  reference VARCHAR(190) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_invoice_payments_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+  INDEX idx_invoice_payments_invoice (invoice_id)
 );
 
 CREATE TABLE IF NOT EXISTS follow_ups (
@@ -194,7 +250,8 @@ CREATE TABLE IF NOT EXISTS follow_ups (
   CONSTRAINT fk_followups_lead FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
   CONSTRAINT fk_followups_agent FOREIGN KEY (assigned_agent_id) REFERENCES agents(id) ON DELETE SET NULL,
   INDEX idx_followups_date (follow_up_date),
-  INDEX idx_followups_status (status)
+  INDEX idx_followups_status (status),
+  INDEX idx_followups_status_date (status, follow_up_date, follow_up_time)
 );
 
 CREATE TABLE IF NOT EXISTS conversations (
@@ -204,7 +261,8 @@ CREATE TABLE IF NOT EXISTS conversations (
   last_message_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_conversations_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+  CONSTRAINT fk_conversations_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+  INDEX idx_conversations_client_last (client_id, last_message_at)
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -217,7 +275,8 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_messages_conversation FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
   INDEX idx_messages_unread (is_read),
-  INDEX idx_messages_created (created_at)
+  INDEX idx_messages_created (created_at),
+  INDEX idx_messages_conversation_created (conversation_id, created_at)
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -230,7 +289,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   link VARCHAR(255) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_notifications_read (is_read)
+  INDEX idx_notifications_read (is_read),
+  INDEX idx_notifications_user_unread_created (user_id, is_read, created_at)
 );
 
 CREATE TABLE IF NOT EXISTS activities (

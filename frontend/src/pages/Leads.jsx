@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Eye, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import api, { formatDate, money } from "../api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import api, { errorMessage, formatDate, money } from "../api/client";
 import { useDebounce } from "../hooks/useDebounce";
 import { useUi } from "../context/UiContext";
 import { EmptyState, Loader, Pagination, StatusBadge } from "../components/ui/Common";
 
 export default function Leads() {
   const { openModal, askConfirm, invalidateAll, toast } = useUi();
+  const queryClient = useQueryClient();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -20,13 +21,27 @@ export default function Leads() {
   const convert = useMutation({
     mutationFn: (id) => api.post(`/leads/${id}/convert`),
     onSuccess: () => {
-      invalidateAll();
+      invalidateAll([["leads"], ["clients"], ["recent-clients"], ["dashboard-stats"], ["reports"], ["agents"]]);
       toast("Lead converted to client");
     },
+    onError: (err) => toast(errorMessage(err), "error"),
   });
   const assign = useMutation({
     mutationFn: ({ id, assigned_agent_id, status }) => api.patch(`/leads/${id}`, { assigned_agent_id, status }),
-    onSuccess: () => invalidateAll(),
+    onMutate: async ({ id, assigned_agent_id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["leads"] });
+      const previous = queryClient.getQueriesData({ queryKey: ["leads"] });
+      previous.forEach(([key, data]) => { if (data?.data) queryClient.setQueryData(key, {
+        ...data,
+        data: data?.data?.map((lead) => lead.id === id ? { ...lead, assigned_agent_id, status } : lead),
+      }); });
+      return { previous };
+    },
+    onSuccess: () => invalidateAll([["leads"], ["agents"]]),
+    onError: (err, _variables, context) => {
+      context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast(errorMessage(err), "error");
+    },
   });
 
   return (
@@ -72,12 +87,12 @@ export default function Leads() {
                   <td className="px-5 py-3">{l.budget ? money(l.budget) : "—"}</td>
                   <td className="px-5 py-3">{formatDate(l.travel_date)}</td>
                   <td className="px-5 py-3">
-                    <select className="input !py-1 !text-xs" value={l.status} onChange={(e) => assign.mutate({ id: l.id, status: e.target.value, assigned_agent_id: l.assigned_agent_id })}>
+                    <select className="input !py-1 !text-xs" disabled={assign.isPending} value={l.status} onChange={(e) => assign.mutate({ id: l.id, status: e.target.value, assigned_agent_id: l.assigned_agent_id })}>
                       {["new", "contacted", "qualified", "converted", "lost"].map((s) => <option key={s}>{s}</option>)}
                     </select>
                   </td>
                   <td className="px-5 py-3">
-                    <select className="input !py-1 !text-xs" value={l.assigned_agent_id || ""} onChange={(e) => assign.mutate({ id: l.id, assigned_agent_id: e.target.value || null, status: l.status })}>
+                    <select className="input !py-1 !text-xs" disabled={assign.isPending} value={l.assigned_agent_id || ""} onChange={(e) => assign.mutate({ id: l.id, assigned_agent_id: e.target.value || null, status: l.status })}>
                       <option value="">Unassigned</option>
                       {(agents.data || []).map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
                     </select>

@@ -51,7 +51,6 @@ export default function Destinations() {
                         message: `${d.name} will be deleted. Related records will keep their history without this destination link.`,
                         onConfirm: async () => {
                           await api.delete(`/destinations/${d.id}`);
-                          invalidateAll();
                         },
                       })
                     }
@@ -78,7 +77,7 @@ export default function Destinations() {
           onClose={() => setModal(null)}
           onSaved={() => {
             setModal(null);
-            invalidateAll();
+            invalidateAll([["destinations"], ["dashboard-stats"], ["recent-clients"]]);
             toast("Destination saved");
           }}
         />

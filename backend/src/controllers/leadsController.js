@@ -39,11 +39,10 @@ async function list(req, res, next) {
       params.push(status);
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-    const totalRows = await query(`SELECT COUNT(*) AS count FROM leads l ${where}`, params);
-    const rows = await query(
-      `${SELECT} ${where} ORDER BY l.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
-      params
-    );
+    const [totalRows, rows] = await Promise.all([
+      query(`SELECT COUNT(*) AS count FROM leads l ${where}`, params),
+      query(`${SELECT} ${where} ORDER BY l.created_at DESC LIMIT ${limit} OFFSET ${offset}`, params),
+    ]);
     res.json({ data: rows, total: Number(totalRows[0].count), page, limit });
   } catch (err) {
     next(err);

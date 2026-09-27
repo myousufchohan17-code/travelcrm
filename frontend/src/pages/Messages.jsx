@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import api, { formatDate } from "../api/client";
+import api, { errorMessage, formatDate } from "../api/client";
 import { useDebounce } from "../hooks/useDebounce";
 import { useUi } from "../context/UiContext";
 import { EmptyState, Loader, initials } from "../components/ui/Common";
 
 export default function Messages() {
-  const { openModal, invalidateAll } = useUi();
+  const { openModal, invalidateAll, toast } = useUi();
   const [q, setQ] = useState("");
   const [active, setActive] = useState(null);
   const [body, setBody] = useState("");
@@ -25,8 +25,9 @@ export default function Messages() {
     mutationFn: () => api.post("/messages", { conversation_id: active, body }),
     onSuccess: () => {
       setBody("");
-      invalidateAll();
+      invalidateAll([["conversations"], ["thread"], ["messages-unread"]]);
     },
+    onError: (err) => toast(errorMessage(err), "error"),
   });
 
   const showThread = Boolean(active);
@@ -107,7 +108,7 @@ export default function Messages() {
               }}
             >
               <input className="input min-w-0" placeholder="Write a message..." value={body} onChange={(e) => setBody(e.target.value)} />
-              <button className="btn-primary sm:shrink-0" disabled={send.isPending}>Send</button>
+              <button className="btn-primary sm:shrink-0" disabled={send.isPending}>{send.isPending ? "Sending..." : "Send"}</button>
             </form>
           </>
         )}

@@ -102,8 +102,11 @@ async function list(req, res, next) {
     const where = clauses.length ? ` WHERE ${clauses.join(" AND ")}` : "";
     const sortMap = { name: "i.name ASC", quantity: "i.quantity DESC", available: "i.available_quantity DESC", price: "i.selling_price DESC", newest: "i.created_at DESC" };
     const order = sortMap[req.query.sort] || sortMap.newest;
-    const [count] = await query(`SELECT COUNT(*) AS count FROM inventory i LEFT JOIN destinations d ON d.id = i.destination_id${where}`, params);
-    const data = await query(`${SELECT}${where} ORDER BY ${order} LIMIT ${limit} OFFSET ${(page - 1) * limit}`, params);
+    const [countRows, data] = await Promise.all([
+      query(`SELECT COUNT(*) AS count FROM inventory i LEFT JOIN destinations d ON d.id = i.destination_id${where}`, params),
+      query(`${SELECT}${where} ORDER BY ${order} LIMIT ${limit} OFFSET ${(page - 1) * limit}`, params),
+    ]);
+    const [count] = countRows;
     res.json({ data: data.map(normalizeInventoryRow), total: Number(count.count), page, limit });
   } catch (err) { next(err); }
 }
@@ -212,16 +215,47 @@ async function update(req, res, next) {
 }
 
 async function remove(req, res, next) {
-  try { const existing = await query("SELECT id FROM inventory WHERE id = ?", [req.params.id]); if (!existing.length) return res.status(404).json({ message: "Inventory item not found" }); await query("DELETE FROM inventory WHERE id = ?", [req.params.id]); await logActivity(req.user.id, "deleted", "inventory", req.params.id, "Inventory item deleted"); res.json({ success: true }); } catch (err) { next(err); }
+  try {
+    const existing = await query("SELECT id FROM inventory WHERE id = ?", [req.params.id]);
+    if (!existing.length) return res.status(404).json({ message: "Inventory item not found" });
+    await query("UPDATE bookings SET inventory_id = NULL, inventory_quantity = 0 WHERE inventory_id = ?", [req.params.id]);
+    await query("DELETE FROM inventory WHERE id = ?", [req.params.id]);
+    await logActivity(req.user.id, "deleted", "inventory", req.params.id, "Inventory item deleted");
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 }
 
 async function adjustReservation(id, amount) {
-  const rows = await query("SELECT * FROM inventory WHERE id = ?", [id]);
-  if (!rows.length) throw new Error("Selected inventory item was not found");
-  const item = rows[0]; const nextAvailable = Number(item.available_quantity) - amount; const nextReserved = Number(item.reserved_quantity) + amount;
-  if (nextAvailable < 0 || nextReserved < 0) throw new Error("Not enough inventory is available for this booking");
-  const status = statusFor({ available_quantity: nextAvailable, reserved_quantity: nextReserved, low_stock_threshold: Number(item.low_stock_threshold) }, item.status);
-  await query("UPDATE inventory SET available_quantity=?, reserved_quantity=?, status=? WHERE id=?", [nextAvailable, nextReserved, status, id]);
+  const quantity = Number(amount);
+  if (!Number.isInteger(quantity) || quantity === 0) throw new Error("Reservation quantity must be a non-zero integer");
+  const updated = await query(
+    `UPDATE inventory SET
+       status = CASE
+         WHEN status = 'inactive' THEN 'inactive'
+         WHEN available_quantity - ? <= 0 THEN 'out_of_stock'
+         WHEN available_quantity - ? <= low_stock_threshold THEN 'low_availability'
+         ELSE 'available'
+       END
+       ,available_quantity = available_quantity - ?
+       ,reserved_quantity = reserved_quantity + ?
+     WHERE id = ? AND available_quantity - ? >= 0 AND reserved_quantity + ? >= 0
+       AND (? <= 0 OR status <> 'inactive')
+     RETURNING id`,
+    [quantity, quantity, quantity, quantity, id, quantity, quantity, quantity]
+  );
+  const changed = Array.isArray(updated) ? updated.length > 0 : Number(updated.affectedRows) > 0;
+  if (changed) return;
+  const existing = await query("SELECT id FROM inventory WHERE id = ?", [id]);
+  if (!existing.length) {
+    const error = new Error("Selected inventory item was not found");
+    error.status = 404;
+    throw error;
+  }
+  const error = new Error("Not enough inventory is available for this booking");
+  error.status = 409;
+  throw error;
 }
 
 module.exports = { list, summary, getOne, create, update, remove, adjustReservation, CATEGORIES, STATUSES };

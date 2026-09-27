@@ -35,15 +35,14 @@ async function list(req, res, next) {
       params.push(status);
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-    const totalRows = await query(
-      `SELECT COUNT(*) AS count FROM travel_packages p
-       LEFT JOIN destinations d ON d.id = p.destination_id ${where}`,
-      params
-    );
-    const rows = await query(
-      `${SELECT} ${where} ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
-      params
-    );
+    const [totalRows, rows] = await Promise.all([
+      query(
+        `SELECT COUNT(*) AS count FROM travel_packages p
+         LEFT JOIN destinations d ON d.id = p.destination_id ${where}`,
+        params
+      ),
+      query(`${SELECT} ${where} ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`, params),
+    ]);
     res.json({ data: rows, total: Number(totalRows[0].count), page, limit });
   } catch (err) {
     next(err);

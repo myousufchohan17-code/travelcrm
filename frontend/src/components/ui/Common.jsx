@@ -2,6 +2,7 @@ export function StatusBadge({ value }) {
   const key = String(value || "").toLowerCase();
   const map = {
     pending: "bg-orange-50 text-orange-600",
+    overdue: "bg-red-50 text-red-600",
     confirmed: "bg-blue-50 text-blue-600",
     processing: "bg-indigo-50 text-indigo-600",
     cancelled: "bg-red-50 text-red-600",

@@ -7,7 +7,7 @@ import { useUi } from "../context/UiContext";
 import { EmptyState, Loader, Modal, StatusBadge } from "../components/ui/Common";
 
 export default function Settings() {
-  const { user, setUser, settings, setSettings, refresh } = useAuth();
+  const { user, setUser, settings, setSettings } = useAuth();
   const { toast, askConfirm, invalidateAll } = useUi();
   const [profile, setProfile] = useState({ full_name: user?.full_name || "", phone: user?.phone || "", email: user?.email || "" });
   const [company, setCompany] = useState(settings?.company_name || "");
@@ -133,7 +133,6 @@ export default function Settings() {
                         message: `${d.name} will be deleted. Related records will keep their history without this destination link.`,
                         onConfirm: async () => {
                           await api.delete(`/destinations/${d.id}`);
-                          invalidateAll();
                         },
                       })
                     }
@@ -181,7 +180,6 @@ export default function Settings() {
                           message: `${a.full_name} will be deleted. Assigned bookings, leads and follow-ups will become unassigned.`,
                           onConfirm: async () => {
                             await api.delete(`/agents/${a.id}`);
-                            invalidateAll();
                           },
                         })
                       }
@@ -218,8 +216,7 @@ export default function Settings() {
           onClose={() => setAgentModal(null)}
           onSaved={() => {
             setAgentModal(null);
-            invalidateAll();
-            refresh();
+            invalidateAll([["agents"], ["bookings"], ["leads"], ["follow-ups"], ["reports"], ["dashboard-stats"]]);
           }}
         />
       )}
@@ -229,7 +226,7 @@ export default function Settings() {
           onClose={() => setDestModal(null)}
           onSaved={() => {
             setDestModal(null);
-            invalidateAll();
+            invalidateAll([["destinations"], ["dashboard-stats"], ["recent-clients"]]);
           }}
         />
       )}

@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import {
   LayoutDashboard, Users, CalendarCheck, Package, Target, Clock3, Warehouse,
-  MessageCircle, BarChart3, Settings, MapPin, UserCheck, X, Sparkles,
+  MessageCircle, BarChart3, Settings, MapPin, UserCheck, X, Sparkles, ReceiptText,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../api/client";
@@ -16,6 +16,7 @@ const items = [
   { to: "/ai-assistant", label: "AI Travel Assistant", icon: Sparkles },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/bookings", label: "Bookings", icon: CalendarCheck },
+  { to: "/invoices", label: "Invoices", icon: ReceiptText },
   { to: "/packages", label: "Packages", icon: Package },
   { to: "/inventory", label: "Inventory", icon: Warehouse },
   { to: "/leads", label: "Leads", icon: Target },

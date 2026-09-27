@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Check, CalendarClock, Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import api, { formatDate } from "../api/client";
+import api, { errorMessage, formatDate } from "../api/client";
 import { useUi } from "../context/UiContext";
 import { EmptyState, Loader, Modal, Pagination, StatusBadge } from "../components/ui/Common";
 
@@ -19,17 +19,19 @@ export default function FollowUps() {
   const complete = useMutation({
     mutationFn: (id) => api.patch(`/follow-ups/${id}/complete`),
     onSuccess: () => {
-      invalidateAll();
+      invalidateAll([["follow-ups"]]);
       toast("Follow-up completed");
     },
+    onError: (err) => toast(errorMessage(err), "error"),
   });
   const doReschedule = useMutation({
     mutationFn: () => api.patch(`/follow-ups/${reschedule.id}/reschedule`, { follow_up_date: date, follow_up_time: time || null }),
     onSuccess: () => {
-      invalidateAll();
+      invalidateAll([["follow-ups"]]);
       toast("Follow-up rescheduled");
       setReschedule(null);
     },
+    onError: (err) => toast(errorMessage(err), "error"),
   });
 
   return (
@@ -74,7 +76,7 @@ export default function FollowUps() {
                     <div className="flex gap-1">
                       <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={() => openModal("view-followup", f)}><Eye className="h-4 w-4" /></button>
                       <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={() => openModal("followup", f)}><Pencil className="h-4 w-4" /></button>
-                      <button className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50" onClick={() => complete.mutate(f.id)}><Check className="h-4 w-4" /></button>
+                      <button className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" disabled={complete.isPending} onClick={() => complete.mutate(f.id)}><Check className="h-4 w-4" /></button>
                       <button className="rounded-lg p-1.5 text-orange-500 hover:bg-orange-50" onClick={() => { setReschedule(f); setDate(f.follow_up_date); setTime(String(f.follow_up_time || "").slice(0, 5)); }}><CalendarClock className="h-4 w-4" /></button>
                       <button
                         className="rounded-lg p-1.5 text-red-500 hover:bg-red-50"
@@ -117,7 +119,7 @@ export default function FollowUps() {
               <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
             <div className="flex justify-end">
-              <button className="btn-primary" disabled={doReschedule.isPending}>Save</button>
+              <button className="btn-primary" disabled={doReschedule.isPending}>{doReschedule.isPending ? "Saving..." : "Save"}</button>
             </div>
           </form>
         </Modal>

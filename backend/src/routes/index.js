@@ -16,6 +16,7 @@ const reports = require("../controllers/reportsController");
 const misc = require("../controllers/miscController");
 const ai = require("../controllers/aiController");
 const inventory = require("../controllers/inventoryController");
+const invoices = require("../controllers/invoicesController");
 
 const router = express.Router();
 
@@ -39,6 +40,15 @@ router.get("/inventory/:id", inventory.getOne);
 router.post("/inventory", inventory.create);
 router.put("/inventory/:id", inventory.update);
 router.delete("/inventory/:id", inventory.remove);
+
+router.get("/invoices/summary", invoices.summary);
+router.get("/invoices", invoices.list);
+router.get("/invoices/:id", invoices.getOne);
+router.post("/invoices", invoices.create);
+router.put("/invoices/:id", invoices.update);
+router.patch("/invoices/:id/payment", invoices.payment);
+router.post("/invoices/:id/send", invoices.send);
+router.delete("/invoices/:id", invoices.remove);
 
 router.get("/clients", clients.list);
 router.get("/clients/:id", clients.getOne);

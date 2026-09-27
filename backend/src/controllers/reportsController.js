@@ -2,11 +2,12 @@ const { query } = require("../config/db");
 
 async function summary(_req, res, next) {
   try {
-    const bookingsByStatus = await query(
+    const [bookingsByStatus, revenueMonthly, clientGrowth, destinationPopularity, packagePerformance, agentPerformance] = await Promise.all([
+      query(
       `SELECT status, COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS revenue
        FROM bookings GROUP BY status`
-    );
-    const revenueMonthly = await query(
+      ),
+      query(
       `SELECT DATE_FORMAT(created_at, '%Y-%m') AS label,
               COALESCE(SUM(CASE WHEN status IN ('confirmed','completed') THEN total_amount ELSE 0 END), 0) AS revenue,
               COUNT(*) AS bookings
@@ -14,15 +15,15 @@ async function summary(_req, res, next) {
        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
        GROUP BY label
        ORDER BY label ASC`
-    );
-    const clientGrowth = await query(
+      ),
+      query(
       `SELECT DATE_FORMAT(created_at, '%Y-%m') AS label, COUNT(*) AS count
        FROM clients
        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
        GROUP BY label
        ORDER BY label ASC`
-    );
-    const destinationPopularity = await query(
+      ),
+      query(
       `SELECT d.id, d.name, d.image, COUNT(b.id) AS bookings,
               COALESCE(SUM(CASE WHEN b.status IN ('confirmed','completed') THEN b.total_amount ELSE 0 END), 0) AS revenue
        FROM destinations d
@@ -31,8 +32,8 @@ async function summary(_req, res, next) {
        GROUP BY d.id, d.name, d.image
        ORDER BY bookings DESC
        LIMIT 10`
-    );
-    const packagePerformance = await query(
+      ),
+      query(
       `SELECT p.id, p.name, p.category, COUNT(b.id) AS bookings,
               COALESCE(SUM(CASE WHEN b.status IN ('confirmed','completed') THEN b.total_amount ELSE 0 END), 0) AS revenue
        FROM travel_packages p
@@ -41,8 +42,8 @@ async function summary(_req, res, next) {
        GROUP BY p.id, p.name, p.category
        ORDER BY bookings DESC
        LIMIT 10`
-    );
-    const agentPerformance = await query(
+      ),
+      query(
       `SELECT a.id, a.full_name,
               COUNT(b.id) AS bookings,
               COALESCE(SUM(CASE WHEN b.status IN ('confirmed','completed') THEN b.total_amount ELSE 0 END), 0) AS revenue
@@ -52,7 +53,8 @@ async function summary(_req, res, next) {
        GROUP BY a.id, a.full_name
        ORDER BY bookings DESC
        LIMIT 10`
-    );
+      ),
+     ]);
 
     res.json({
       bookingsByStatus: bookingsByStatus.map((r) => ({

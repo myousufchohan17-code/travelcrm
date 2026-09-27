@@ -19,19 +19,18 @@ async function list(req, res, next) {
     const q = String(req.query.q || "").trim();
     const where = q ? "WHERE c.full_name LIKE ? OR c.email LIKE ? OR c.phone LIKE ?" : "";
     const params = q ? [`%${q}%`, `%${q}%`, `%${q}%`] : [];
-    const totalRows = await query(
-      `SELECT COUNT(*) AS count FROM clients c ${where}`,
-      params
-    );
-    const rows = await query(
-      `SELECT c.*, d.name AS preferred_destination
-       FROM clients c
-       LEFT JOIN destinations d ON d.id = c.preferred_destination_id
-       ${where}
-       ORDER BY c.created_at DESC
-       LIMIT ${limit} OFFSET ${offset}`,
-      params
-    );
+    const [totalRows, rows] = await Promise.all([
+      query(`SELECT COUNT(*) AS count FROM clients c ${where}`, params),
+      query(
+        `SELECT c.*, d.name AS preferred_destination
+         FROM clients c
+         LEFT JOIN destinations d ON d.id = c.preferred_destination_id
+         ${where}
+         ORDER BY c.created_at DESC
+         LIMIT ${limit} OFFSET ${offset}`,
+        params
+      ),
+    ]);
     res.json({ data: rows, total: Number(totalRows[0].count), page, limit });
   } catch (err) {
     next(err);
@@ -48,7 +47,11 @@ async function getOne(req, res, next) {
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ message: "Client not found" });
-    res.json(rows[0]);
+    const invoices = await query(
+      "SELECT id, invoice_number, issue_date, due_date, total, amount_paid, status FROM invoices WHERE client_id = ? ORDER BY created_at DESC",
+      [req.params.id]
+    );
+    res.json({ ...rows[0], invoices });
   } catch (err) {
     next(err);
   }

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import api, { formatDate, money } from "../api/client";
+import { Eye, FilePlus2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import api, { errorMessage, formatDate, money } from "../api/client";
 import { useDebounce } from "../hooks/useDebounce";
 import { useUi } from "../context/UiContext";
 import { EmptyState, Loader, Pagination, StatusBadge } from "../components/ui/Common";
@@ -10,6 +10,7 @@ const statuses = ["", "pending", "confirmed", "processing", "cancelled", "comple
 
 export default function Bookings() {
   const { openModal, askConfirm, invalidateAll, toast } = useUi();
+  const queryClient = useQueryClient();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -21,13 +22,39 @@ export default function Bookings() {
   });
   const patchStatus = useMutation({
     mutationFn: ({ id, status }) => api.patch(`/bookings/${id}/status`, { status }),
-    onSuccess: () => invalidateAll(),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["bookings"] });
+      const previous = queryClient.getQueriesData({ queryKey: ["bookings"] });
+      previous.forEach(([key, data]) => { if (data?.data) queryClient.setQueryData(key, {
+        ...data,
+        data: data?.data?.map((booking) => booking.id === id ? { ...booking, status } : booking),
+      }); });
+      return { previous };
+    },
+    onSuccess: () => invalidateAll([["bookings"], ["booking"], ["dashboard-stats"], ["bookings-overview"], ["upcoming-bookings"], ["reports"], ["inventory"], ["inventory-summary"]]),
+    onError: (err, _variables, context) => {
+      context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast(errorMessage(err), "error");
+    },
   });
   const patchAgent = useMutation({
     mutationFn: ({ id, assigned_agent_id }) => api.patch(`/bookings/${id}/agent`, { assigned_agent_id }),
+    onMutate: async ({ id, assigned_agent_id }) => {
+      await queryClient.cancelQueries({ queryKey: ["bookings"] });
+      const previous = queryClient.getQueriesData({ queryKey: ["bookings"] });
+      previous.forEach(([key, data]) => { if (data?.data) queryClient.setQueryData(key, {
+        ...data,
+        data: data?.data?.map((booking) => booking.id === id ? { ...booking, assigned_agent_id } : booking),
+      }); });
+      return { previous };
+    },
     onSuccess: () => {
-      invalidateAll();
+      invalidateAll([["bookings"], ["booking"]]);
       toast("Agent assigned");
+    },
+    onError: (err, _variables, context) => {
+      context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast(errorMessage(err), "error");
     },
   });
 
@@ -74,6 +101,7 @@ export default function Bookings() {
                     <select
                       className="rounded-full border-0 bg-transparent text-xs font-semibold"
                       value={b.status}
+                      disabled={patchStatus.isPending}
                       onChange={(e) => patchStatus.mutate({ id: b.id, status: e.target.value })}
                     >
                       {statuses.filter(Boolean).map((s) => <option key={s} value={s}>{s}</option>)}
@@ -84,6 +112,7 @@ export default function Bookings() {
                     <select
                       className="input !py-1 !text-xs"
                       value={b.assigned_agent_id || ""}
+                      disabled={patchAgent.isPending}
                       onChange={(e) => patchAgent.mutate({ id: b.id, assigned_agent_id: e.target.value || null })}
                     >
                       <option value="">Unassigned</option>
@@ -93,6 +122,7 @@ export default function Bookings() {
                   <td className="px-5 py-3">
                     <div className="flex gap-1">
                       <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={() => openModal("view-booking", b)}><Eye className="h-4 w-4" /></button>
+                      <button className="rounded-lg p-1.5 text-brand-600 hover:bg-brand-50" title="Create invoice" aria-label={`Create invoice for ${b.client_name || "booking"}`} onClick={() => openModal("invoice", { bookingId: b.id })}><FilePlus2 className="h-4 w-4" /></button>
                       <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={() => openModal("booking", b)}><Pencil className="h-4 w-4" /></button>
                       <button
                         className="rounded-lg p-1.5 text-red-500 hover:bg-red-50"
